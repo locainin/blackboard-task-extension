@@ -1,13 +1,13 @@
 {
-  "name": "canvas-task-extension",
+  "name": "blackboard-task-extension",
   "version": "1.3.8",
-  "description": "A chrome extension that improves the Canvas LMS To Do sidebar!",
-  "homepage": "https://github.com/jtcheng26/canvas-task-extension",
+  "description": "A browser extension that improves the Blackboard task sidebar",
+  "homepage": "https://github.com/locainin/blackboard-task-extension",
   "license": "MIT",
   "packageManager": "bun@1.3.10",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jtcheng26/canvas-task-extension.git"
+    "url": "https://github.com/locainin/blackboard-task-extension.git"
   },
   "engines": {
     "npm": ">=8.0.0",
