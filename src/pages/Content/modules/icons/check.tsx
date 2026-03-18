@@ -26,7 +26,7 @@ const CheckIconWrapper = styled.div<DarkProps>`
 
 const Check = (
   <svg
-    className="canvas-tasks-check-button"
+    className="tasks-check-button"
     fill="#6c757c"
     height={15}
     version="1.1"
@@ -43,7 +43,7 @@ const Check = (
 
 const X = (
   <svg
-    className="canvas-tasks-check-button"
+    className="tasks-check-button"
     fill="#6c757c"
     height={20}
     version="1.1"
@@ -62,7 +62,7 @@ const X = (
 
 const Revert = (
   <svg
-    className="canvas-tasks-check-button"
+    className="tasks-check-button"
     fill="#6c757c"
     height={13}
     version="1.1"

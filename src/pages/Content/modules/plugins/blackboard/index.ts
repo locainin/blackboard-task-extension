@@ -8,6 +8,7 @@ import { BLACKBOARD_ICON_SET } from './icons/icons';
 import loadBlackboardAssignments from './loaders/assignments';
 import loadBlackboardCourses from './loaders/courses';
 import dashCoursesBlackboard from './utils/dashCourses';
+import onCoursePageBlackboard from './utils/onCoursePage';
 
 export const isBlackboard =
   (document.head.querySelector('meta[name="author"]') as HTMLMetaElement | null)
@@ -15,14 +16,14 @@ export const isBlackboard =
 
 export const BlackboardLMSConfig: LMSConfig = {
   isActive: isBlackboard,
-  name: 'Demo',
+  name: 'Blackboard',
   storageKey: 'blackboard_custom',
   useAssignments: makeUseAssignments(loadBlackboardAssignments),
   useCourses: makeUseCourses(loadBlackboardCourses),
   createAssignment: makeCreateCustomTask('blackboard_custom'), // todo
   markAssignment: makeMarkAssignment('blackboard_custom'),
   dashCourses: dashCoursesBlackboard,
-  onCoursePage: () => false,
+  onCoursePage: onCoursePageBlackboard,
   iconSet: BLACKBOARD_ICON_SET,
 };
 

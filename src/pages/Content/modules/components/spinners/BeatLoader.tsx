@@ -7,7 +7,7 @@ import { sizeMarginDefaults, cssValue } from './helpers';
 import { LoaderSizeMarginProps } from './interfaces';
 
 const Wrapper = styled.span`
-  @keyframes canvas-tasks-beat {
+  @keyframes tasks-beat {
     50% {
       transform: scale(0.75);
       opacity: 0.2;
@@ -32,7 +32,7 @@ class Loader extends React.PureComponent<Required<LoaderSizeMarginProps>> {
       height: cssValue(size),
       margin: cssValue(margin),
       borderRadius: '100%',
-      animationName: 'canvas-tasks-beat',
+      animationName: 'tasks-beat',
       animationDuration: `${0.7 / speedMultiplier}s`,
       animationDelay: i % 2 ? '0s' : `${0.35 / speedMultiplier}s`,
       animationIterationCount: 'infinite',

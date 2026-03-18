@@ -46,20 +46,24 @@ const AnnouncementIcon = (
 );
 
 const NotificationBubble = styled.div<{ pad: boolean }>`
-  background-color: var(--ic-brand-primary);
-  min-width: 18px;
-  height: 18px;
+  background: linear-gradient(180deg, #0f2f57 0%, #0a2442 100%);
+  min-width: 19px;
+  height: 19px;
   border-radius: 100px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: white;
   font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
   position: absolute;
   opacity: 1;
-  left: 14px;
-  top: -10px;
+  left: 12px;
+  top: -11px;
   padding: 0px ${(props) => (props.pad ? '4' : '0')}px;
+  border: 2px solid rgba(34, 40, 58, 0.96);
+  box-shadow: 0 8px 18px rgba(3, 10, 24, 0.28);
   z-index: 20;
 `;
 
@@ -78,6 +82,9 @@ export function AnnouncementIconComponent({
     <div
       style={{
         position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       {notifs > 0 ? (

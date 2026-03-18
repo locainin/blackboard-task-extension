@@ -3,6 +3,10 @@ import { Course } from '../types';
 import { useObjectStore } from './useStore';
 import { CourseStoreContext } from '../contexts/contexts';
 import { watchCustomColors } from '../plugins/shared/customColors';
+import {
+  safeAddStorageOnChangedListener,
+  safeRemoveStorageOnChangedListener,
+} from '../utils/extensionContext';
 
 // call the callback function whenever course colors change
 function watchDashboardColors(callback: (id: string, color: string) => void) {
@@ -54,7 +58,7 @@ function watchOptionsThemeColor(callback: (id: string, color: string) => void) {
     if ('theme_color' in changes)
       callback('0', changes['theme_color'].newValue);
   };
-  chrome.storage.onChanged.addListener(listener);
+  safeAddStorageOnChangedListener(listener);
   return listener;
 }
 
@@ -74,6 +78,8 @@ export function useNewCourseStore(
 ): CourseStoreInterface {
   function toMap(list: Course[]) {
     const map: Record<string, Course> = {};
+    // Later pages can send partial course arrays
+    // Rebuilding the map here keeps lookups cheap for the dropdown and chart
     list.forEach((course) => (map[course.id] = course));
     return map;
   }
@@ -89,14 +95,19 @@ export function useNewCourseStore(
   );
   function getCourseList(courses?: string[]): Course[] {
     if (!courses) return Object.values(state);
-    return courses.map((c) => state[c]);
+    // Ignore ids that are not present on the current page snapshot
+    // Blackboard pages do not always hydrate every course at the same time
+    return courses
+      .map((c) => state[c])
+      .filter((course): course is Course => Boolean(course));
   }
   function newPage(courses: Course[]): void {
     initialize(toMap(courses));
   }
 
   useEffect(() => {
-    // attach listeners here
+    // Attach the long-lived listeners once for the current store instance
+    // Cleanup must stay strict because Blackboard swaps DOM fragments often
     const observers = [watchDashboardColors(updateCourseColor)];
     const chromeStorageListeners = [watchOptionsThemeColor(updateCourseColor)];
     if (platformKey)
@@ -106,7 +117,7 @@ export function useNewCourseStore(
     return () => {
       observers.forEach((observer) => observer.disconnect());
       chromeStorageListeners.forEach((listener) =>
-        chrome.storage.onChanged.removeListener(listener)
+        safeRemoveStorageOnChangedListener(listener)
       );
     };
   }, [updateCourseColor]);

@@ -18,6 +18,6 @@ export default function runSettings(
     container
   );
   console.log(
-    'Tasks for Canvas: Check out the repo! https://github.com/jtcheng26/canvas-task-extension'
+    'Tasks for Blackboard: Check out the repo! https://github.com/locainin/blackboard-task-extension'
   );
 }

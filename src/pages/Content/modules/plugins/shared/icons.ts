@@ -6,10 +6,9 @@ import {
   QuizIcon,
   NoteIcon,
   AnnouncementIcon,
-  GradescopeIcon,
   NeedsGradingIcon,
 } from '../../icons';
-export const DEFAULT_ICON_SET: IconSet = {
+export const SHARED_ICON_SET: IconSet = {
   assignments: {
     [AssignmentType.ASSIGNMENT]: AssignmentIcon,
     [AssignmentType.DISCUSSION]: DiscussionIcon,
@@ -17,7 +16,6 @@ export const DEFAULT_ICON_SET: IconSet = {
     [AssignmentType.NOTE]: NoteIcon,
     [AssignmentType.ANNOUNCEMENT]: AnnouncementIcon,
     [AssignmentType.EVENT]: AssignmentIcon,
-    [AssignmentType.GRADESCOPE]: GradescopeIcon,
     ungraded: NeedsGradingIcon,
   },
 };

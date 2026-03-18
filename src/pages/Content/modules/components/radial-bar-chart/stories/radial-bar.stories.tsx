@@ -16,7 +16,7 @@ interface storyProps {
   data: ChartData;
 }
 
-// No Canvas fonts/styling, will look a bit different
+// Storybook runs without Blackboard page styling, so spacing can shift a bit
 const Template: ComponentStory<typeof RadialBarChart> = ({
   data,
 }: storyProps) => {

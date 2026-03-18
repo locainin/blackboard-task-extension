@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Options, FinalAssignment, AssignmentType } from '../../types';
 import { UseAssignmentsHookInterface } from '../../types/config';
 import assignmentIsDone from '../../utils/assignmentIsDone';
+import { logBlackboardDiagnostics } from '../blackboard/utils/diagnostics';
 
 // Use default values from 'full', only filling in values from 'partial' that are not null/undefined
 export function mergePartial<T>(partial: Partial<T>, full: T): T {
@@ -65,7 +66,6 @@ export function filterAssignmentTypes(
     AssignmentType.QUIZ,
     AssignmentType.NOTE,
     AssignmentType.ANNOUNCEMENT,
-    AssignmentType.GRADESCOPE,
   ];
   return assignments.filter((assignment) =>
     validAssignments.includes(assignment.type)
@@ -111,6 +111,10 @@ export function makeUseAssignments(
       errorMessage: '',
     });
     useEffect(() => {
+      let active = true;
+
+      // Blackboard filters live in the options object
+      // Reload when those settings change so the sidebar stays honest
       setState({
         data: state.data,
         isError: false,
@@ -119,6 +123,12 @@ export function makeUseAssignments(
       });
       loader(startDate, endDate, options)
         .then((res: FinalAssignment[]) => {
+          if (!active) return;
+          logBlackboardDiagnostics('hook assignments resolved', {
+            count: res.length,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          });
           setState({
             data: res,
             isSuccess: true,
@@ -127,7 +137,11 @@ export function makeUseAssignments(
           });
         })
         .catch((err) => {
+          if (!active) return;
           console.error(err);
+          logBlackboardDiagnostics('hook assignments failed', {
+            message: err.message,
+          });
           setState({
             data: state.data,
             isError: true,
@@ -135,7 +149,10 @@ export function makeUseAssignments(
             errorMessage: err.message,
           });
         });
-    }, [startDate, endDate]);
+      return () => {
+        active = false;
+      };
+    }, [startDate, endDate, options]);
     return state;
   };
 }

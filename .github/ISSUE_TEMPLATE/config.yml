@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Blackboard task extension
+    url: https://github.com/locainin/blackboard-task-extension
+    about: Project home and install notes

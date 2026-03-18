@@ -1,9 +1,12 @@
 import { ExperimentConfig } from '../types';
 import { CLIENT_ID_LENGTH, EXPERIMENT_CONFIG_URL } from '../constants';
 import { useEffect, useState, useMemo, useContext } from 'react';
-import isDemo from '../utils/isDemo';
 import { ExperimentsContext } from '../contexts/contexts';
 import axios from 'axios';
+import {
+  safeStorageSyncGet,
+  safeStorageSyncSet,
+} from '../utils/extensionContext';
 
 // cryptographically secure random number of length N
 // https://codeql.github.com/codeql-query-help/javascript/js-biased-cryptographic-random/
@@ -24,21 +27,19 @@ function generateRandomNumber(length: number): string {
 }
 
 async function getClientId(): Promise<string> {
-  return new Promise((resolve) => {
-    if (isDemo()) {
-      resolve('000000000');
-      return;
-    }
-    chrome.storage.sync.get(['client_id'], function (result) {
-      let client_id = result['client_id'];
-      if (!client_id) {
-        client_id = generateRandomNumber(CLIENT_ID_LENGTH);
-        chrome.storage.sync.set({ client_id: client_id }, () => {
-          resolve(client_id);
-        });
-      } else resolve(client_id);
-    });
-  });
+  // Reuse the stored id so experiment buckets stay stable across sessions
+  const result = await safeStorageSyncGet<Record<string, unknown>>(
+    ['client_id'],
+    {}
+  );
+  let client_id = result['client_id'];
+  if (typeof client_id === 'string' && client_id) {
+    return client_id;
+  }
+
+  const nextClientId = generateRandomNumber(CLIENT_ID_LENGTH);
+  await safeStorageSyncSet({ client_id: nextClientId });
+  return nextClientId;
 }
 
 async function getExperimentConfigs(): Promise<ExperimentConfig[]> {
@@ -62,11 +63,26 @@ export function useExperiments(): ExperimentsHubInterface {
   >([]);
 
   useEffect(() => {
-    if (isDemo()) return;
-    (async () => {
-      setExperimentConfigs(await getExperimentConfigs());
-      setUserId(await getClientId());
-    })();
+    let active = true;
+
+    async function loadExperiments() {
+      const [configs, id] = await Promise.all([
+        getExperimentConfigs(),
+        getClientId(),
+      ]);
+
+      // Blackboard navigation can unmount this tree while async work is in flight
+      // Ignore late results instead of updating dead state
+      if (!active) return;
+
+      setExperimentConfigs(configs);
+      setUserId(id);
+    }
+
+    void loadExperiments();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return { configs: experimentConfigs, userId };

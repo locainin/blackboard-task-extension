@@ -60,7 +60,7 @@ function ContentLoader({
       animationStart.current = Date.now();
     } else {
       const loadTime = Date.now() - animationStart.current;
-      console.log('Tasks for Canvas: ' + loadTime / 1000 + 's load');
+      console.log('Tasks for Blackboard: ' + loadTime / 1000 + 's load');
       // optional delay if loaded too fast
       if (loadTime < MIN_LOAD_TIME) {
         const to = setTimeout(() => {
@@ -162,14 +162,6 @@ function ContentLoader({
   );
 }
 
-/*
-  compareProps function so content is re-rendered properly when prev and next buttons clicked
-*/
-function compareProps(
-  prevProps: ContentLoaderProps,
-  nextProps: ContentLoaderProps
-) {
-  return prevProps.clickable == nextProps.clickable;
-}
-
-export default React.memo(ContentLoader, compareProps);
+// Let React watch the full prop set here
+// Theme and filter changes should repaint the panel without waiting for a page refresh
+export default React.memo(ContentLoader);

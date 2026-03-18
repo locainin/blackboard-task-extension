@@ -17,10 +17,14 @@ type Options = {
   dark_mode: boolean;
   show_needs_grading: boolean;
   show_long_overdue: boolean;
-  GSCOPE_INT_disabled: boolean;
   clock_24hr: boolean;
   default_list_length: number;
   show_rings: boolean;
+  blackboard_hide_announcements: boolean;
+  blackboard_show_only_graded: boolean;
+  blackboard_hide_discussions: boolean;
+  blackboard_hide_courses_without_due_dates: boolean;
+  blackboard_diagnostics: boolean;
 };
 
 export default Options;

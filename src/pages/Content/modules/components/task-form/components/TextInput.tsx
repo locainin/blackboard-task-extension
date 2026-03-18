@@ -10,16 +10,18 @@ const Input = styled.input<ColorProps & DarkProps>`
   border: 1px solid
     ${(props) =>
       props.dark
-        ? 'var(--tfc-dark-mode-text-secondary)'
-        : 'rgb(199, 205, 299)'};
+        ? 'rgba(255, 255, 255, 0.12)'
+        : 'rgba(15, 23, 42, 0.12)'};
   color: ${(props) =>
-    props.dark ? 'var(--tfc-dark-mode-text-primary)' : 'inherit'};
-  background-color: ${(props) =>
-    props.dark ? 'var(--tfc-dark-mode-bg-primary)' : 'white'};
-  min-height: 28px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 16px;
+    props.dark ? 'var(--tfc-dark-mode-text-primary)' : '#172033'};
+  background: ${(props) =>
+    props.dark
+      ? 'rgba(255, 255, 255, 0.05)'
+      : 'rgba(248, 250, 254, 0.96)'};
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 16px;
+  font-size: 15px;
   outline-color: ${(props) => props.color || THEME_COLOR};
   display: flex;
   justify-content: space-between;
@@ -29,13 +31,19 @@ const Select = styled.div<ColorProps & DarkProps>`
   border: 1px solid
     ${(props) =>
       props.dark
-        ? 'var(--tfc-dark-mode-text-secondary)'
-        : 'rgb(199, 205, 299)'};
-  min-height: 28px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 16px;
+        ? 'rgba(255, 255, 255, 0.12)'
+        : 'rgba(15, 23, 42, 0.12)'};
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 16px;
+  font-size: 15px;
   cursor: pointer;
+  color: ${(props) =>
+    props.dark ? 'var(--tfc-dark-mode-text-primary)' : '#172033'};
+  background: ${(props) =>
+    props.dark
+      ? 'rgba(255, 255, 255, 0.05)'
+      : 'rgba(248, 250, 254, 0.96)'};
   &:hover {
     outline-color: ${(props) => props.color || THEME_COLOR};
     outline-width: 2px;

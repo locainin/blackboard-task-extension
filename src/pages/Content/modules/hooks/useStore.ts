@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import update, { Spec } from 'immutability-helper';
+import { safeStorageSyncSet } from '../utils/extensionContext';
 
 type StoreUpdateFunction<Type> = (
   root: string[], // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,7 +20,7 @@ export interface StoreInterface<Type> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeSpec<Type>(root: string[], value: any) {
   // no error handling is done, assume all entries filled when initialized
-  root.push(''); // for the { $set: value } in the reduction
+  root.push(''); // leave one step for the final { $set: value } node
   const spec = root
     .reverse()
     .reduce((spec: Spec<Type, never>, key: string, i: number) => {
@@ -34,33 +35,46 @@ export function useObjectStore<Type>(
   arg: Record<string, Type>
 ): StoreInterface<Type> {
   const [state, updateState] = useState<Record<string, Type>>(arg);
-  let cached = state; // so sequenced updates (i.e. using another extension to change all colors quickly) aren't lost
+  const cachedRef = useRef(state);
+
+  // Keep a live copy around so fast back-to-back updates do not race each other
+  cachedRef.current = state;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function updateKey(root: string[], value: any) {
+  const updateKey = useCallback(function updateKey(
+    root: string[],
+    value: any
+  ) {
+    // Read from the ref instead of the render snapshot
+    // This keeps rapid updates from overwriting each other
     const newState = update(
-      cached,
+      cachedRef.current,
       makeSpec<Record<string, Type>>(root, value)
     );
-    cached = newState;
-    updateState(cached);
-    return cached;
-  }
+    cachedRef.current = newState;
+    updateState(newState);
+    return newState;
+  }, []);
 
   // for now, only deletes one root-level key from the passed argument
-  function deleteKey(root: string[]) {
-    const newState = update(cached, { $unset: [root[0]] } as Spec<
+  const deleteKey = useCallback(function deleteKey(root: string[]) {
+    // Deletes always target one top-level entry in this store
+    const newState = update(cachedRef.current, { $unset: [root[0]] } as Spec<
       Record<string, Type>,
       never
     >);
-    cached = newState;
-    updateState(cached);
-    return cached;
-  }
+    cachedRef.current = newState;
+    updateState(newState);
+    return newState;
+  }, []);
 
-  function initializeState(arg: Record<string, Type>) {
-    cached = arg;
+  const initializeState = useCallback(function initializeState(
+    arg: Record<string, Type>
+  ) {
+    // Replace the full object when a new Blackboard page is loaded
+    cachedRef.current = arg;
     updateState(arg);
-  }
+  }, []);
 
   return {
     state,
@@ -90,19 +104,29 @@ export function useConfigStore<Type extends Record<string, unknown>>(
   syncKey = ''
 ): SyncStoreInterface<Type> {
   const [state, updateState] = useState<Type>(arg);
-  let cached = state;
+  const cachedRef = useRef(state);
+
+  // Keep storage writes aligned with the latest in-memory state
+  cachedRef.current = state;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function updateKey(root: string[], value: any, write = true) {
-    const newState = update(cached, makeSpec<Type>(root, value));
-    cached = newState;
-    updateState(cached);
+  const updateKey = useCallback(function updateKey(
+    root: string[],
+    value: any,
+    write = true
+  ) {
+    const newState = update(cachedRef.current, makeSpec<Type>(root, value));
+    cachedRef.current = newState;
+    updateState(newState);
     if (sync && write) {
-      const obj = syncKey ? { syncKey: cached } : cached;
-      chrome.storage.sync.set(obj);
+      // Some stores write under a wrapper key instead of the raw object
+      // Use the computed property so the real storage key is updated
+      const obj = syncKey ? { [syncKey]: newState } : newState;
+      // Ignore writes from stale content scripts after an extension reload
+      void safeStorageSyncSet(obj);
     }
-    return cached;
-  }
+    return newState;
+  }, [sync, syncKey]);
 
   return { state: state, update: updateKey };
 }

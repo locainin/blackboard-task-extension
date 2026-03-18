@@ -3,6 +3,8 @@ import Options from '../Content/modules/types/options';
 import './index.css';
 
 const storedUserOptions = Object.keys(OptionsDefaults);
+const OPTIONS_THEME_KEY = 'blackboard-task-options-theme';
+const LAST_CUSTOM_THEME_COLOR_KEY = 'blackboard-task-last-theme-color';
 
 function applyDefaults(options: Options): Options {
   return {
@@ -11,15 +13,60 @@ function applyDefaults(options: Options): Options {
   };
 }
 
-/* Set the logo and title to the extension's web store url */
+// Keep the settings page theme local to the settings page
+function applyAppearanceTheme(darkMode: boolean) {
+  document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+}
+
+function setAppearanceButtons(darkMode: boolean) {
+  const darkButton = document.getElementById('appearance-dark');
+  const lightButton = document.getElementById('appearance-light');
+  if (darkButton) {
+    darkButton.classList.toggle('appearance-selected', darkMode);
+    darkButton.setAttribute('aria-pressed', darkMode ? 'true' : 'false');
+  }
+  if (lightButton) {
+    lightButton.classList.toggle('appearance-selected', !darkMode);
+    lightButton.setAttribute('aria-pressed', !darkMode ? 'true' : 'false');
+  }
+}
+
+function setAppearanceMode(darkMode: boolean) {
+  applyAppearanceTheme(darkMode);
+  setAppearanceButtons(darkMode);
+  window.localStorage.setItem(OPTIONS_THEME_KEY, darkMode ? 'dark' : 'light');
+}
+
+function setAppearanceToggle() {
+  const darkButton = document.getElementById('appearance-dark');
+  const lightButton = document.getElementById('appearance-light');
+  if (darkButton) darkButton.onclick = () => setAppearanceMode(true);
+  if (lightButton) lightButton.onclick = () => setAppearanceMode(false);
+}
+
+function getSavedAppearanceTheme(): boolean {
+  const savedTheme = window.localStorage.getItem(OPTIONS_THEME_KEY);
+  if (savedTheme === 'light') return false;
+  return true;
+}
+
+function restoreDefaults() {
+  window.localStorage.removeItem(OPTIONS_THEME_KEY);
+  window.localStorage.removeItem(LAST_CUSTOM_THEME_COLOR_KEY);
+  chrome.storage.sync.set(OptionsDefaults, () => {
+    window.location.reload();
+  });
+}
+
+function setRestoreDefaults() {
+  const restoreButton = document.getElementById('restore-defaults');
+  if (restoreButton) restoreButton.onclick = () => restoreDefaults();
+}
+
+/* Point the visible repo links at the upstream source */
 function setStoreLinks() {
-  // @ts-expect-error: InstallTrigger is only in Firefox
-  const isFirefox = typeof InstallTrigger !== 'undefined';
-  let storeURL =
-    'https://chrome.google.com/webstore/detail/tasks-for-canvas/kabafodfnabokkkddjbnkgbcbmipdlmb';
-  if (isFirefox)
-    storeURL =
-      'https://addons.mozilla.org/en-US/firefox/addon/tasks-for-canvas';
+  const storeURL =
+    'https://github.com/locainin/blackboard-task-extension';
 
   Array.from(document.getElementsByTagName('a')).forEach((elem) => {
     if (elem.className === 'store-link') elem.href = storeURL;
@@ -103,6 +150,7 @@ for (let l = 4; l <= 10; l++) {
 }
 
 function setWeekdayDropdown() {
+  // Blackboard stores weekdays as 1..7 instead of zero-based indexes
   setDropdown(
     weekdays,
     'weekdays-options',
@@ -116,6 +164,7 @@ function setWeekdayDropdown() {
 }
 
 function setHoursDropdown() {
+  // Persist the hour in 24-hour form so the sidebar math stays simple
   setDropdown(hours, 'hours-options', 'hours-selected', (key: string) => {
     chrome.storage.sync.set({
       start_hour: hours[key] + ampm[getSelectedAmPm()],
@@ -128,6 +177,7 @@ function getSelectedHours() {
 }
 
 function setListLengthDropdown() {
+  // Keep the dropdown in sync with the stored numeric limit
   setDropdown(
     listLength,
     'list-length-options',
@@ -141,6 +191,7 @@ function setListLengthDropdown() {
 }
 
 function setMinutesDropdown() {
+  // Minutes are displayed as padded strings but stored as numbers
   setDropdown(
     minutes,
     'minutes-options',
@@ -156,7 +207,7 @@ function setMinutesDropdown() {
 
 function setAmPmDropdown() {
   setDropdown(ampm, 'ampm-options', 'ampm-selected', (key: string) => {
-    // set option
+    // Combine the visible hour with the chosen half of the day
     chrome.storage.sync.set({
       start_hour: hours[getSelectedHours()] + ampm[key],
     });
@@ -182,6 +233,7 @@ function setSelectedPeriod(key: string) {
   if (selected) {
     selected.classList.add('selected-period');
     const weekday = document.getElementById('weekday-dropdown');
+    // Only week mode needs a named start day
     if (key !== 'week') weekday?.classList.add('hidden');
     else weekday?.classList.remove('hidden');
     const label = document.getElementById('start-label');
@@ -208,6 +260,7 @@ const booleanOptions: Record<string, string> = {
   'due-date-headings': 'due_date_headings',
   'show-locked-assignments': 'show_locked_assignments',
   'show-confetti': 'show_confetti',
+  'dark-mode': 'dark_mode',
   'rolling-period': 'rolling_period',
   'custom-theme-color': 'theme_color',
   'show-needs-grading': 'show_needs_grading',
@@ -215,13 +268,18 @@ const booleanOptions: Record<string, string> = {
   'long-overdue': 'show_long_overdue',
   'clock-24hr': 'clock_24hr',
   'show-rings': 'show_rings',
-  GSCOPE_INT_disabled: 'GSCOPE_INT_disabled',
+  'blackboard-hide-announcements': 'blackboard_hide_announcements',
+  'blackboard-show-only-graded': 'blackboard_show_only_graded',
+  'blackboard-hide-discussions': 'blackboard_hide_discussions',
+  'blackboard-hide-empty-courses': 'blackboard_hide_courses_without_due_dates',
+  'blackboard-diagnostics': 'blackboard_diagnostics',
 };
 
-const invertedKeys = ['dash_courses', 'sidebar', 'GSCOPE_INT_disabled'];
+const invertedKeys = ['dash_courses', 'sidebar'];
 
 function setBooleanOption(key: string, checked: boolean) {
   const updatedKey: Record<string, boolean> = {};
+  // A few legacy settings are stored inverted from the checkbox label
   updatedKey[key] = invertedKeys.includes(key) ? !checked : checked;
   chrome.storage.sync.set(updatedKey);
 }
@@ -244,9 +302,25 @@ document
   });
 
 /* getPropertyValue() includes CSS formatting whitespace, so trim() is needed. */
-const defaultColor = getComputedStyle(document.body)
+const defaultColor = getComputedStyle(document.documentElement)
   .getPropertyValue('--theme-default')
   .trim();
+
+function getRememberedThemeColor() {
+  return (
+    window.localStorage.getItem(LAST_CUSTOM_THEME_COLOR_KEY) || defaultColor
+  );
+}
+
+function rememberThemeColor(color: string) {
+  window.localStorage.setItem(LAST_CUSTOM_THEME_COLOR_KEY, color);
+}
+
+function applyThemeColorPreview(color: string) {
+  const colorChoice = document.getElementById('color-choice');
+  if (colorChoice) (colorChoice as HTMLInputElement).value = color;
+  document.documentElement.style.setProperty('--bg-theme', color);
+}
 
 function debounce(func: (...args: string[]) => void, timeout = 300) {
   let timer: number;
@@ -258,27 +332,37 @@ function debounce(func: (...args: string[]) => void, timeout = 300) {
   };
 }
 
-const setThemeColor = debounce((color?: string) => {
-  const colorChoice = document.getElementById('color-choice');
-  // const check = document.getElementById('custom-theme-color');
-  if (color) {
-    if (colorChoice) (colorChoice as HTMLInputElement).value = color;
-    chrome.storage.sync.set({
-      theme_color: color,
-    });
-    document.body.style.setProperty('--bg-theme', color || defaultColor);
-  } else {
-    if (colorChoice) (colorChoice as HTMLInputElement).value = defaultColor;
-    chrome.storage.sync.set({
-      theme_color: 'var(--ic-brand-global-nav-bgd)',
-    });
-    document.body.style.setProperty('--bg-theme', defaultColor);
-  }
+const writeThemeColor = debounce((color: string) => {
+  // Keep the last chosen custom color around
+  // Turning the toggle off should only disable the accent, not forget the choice
+  rememberThemeColor(color);
+  chrome.storage.sync.set({
+    theme_color: color,
+  });
 });
+
+function setThemeColor(color: string) {
+  // Update the preview right away so the settings page does not flash back
+  // to the default accent while the debounced storage write is waiting
+  rememberThemeColor(color);
+  applyThemeColorPreview(color);
+  writeThemeColor(color);
+}
+
+function clearThemeColor() {
+  // Leave the picker on the last custom value
+  // This makes the next toggle-on feel immediate instead of resetting to the default
+  applyThemeColorPreview(getRememberedThemeColor());
+  chrome.storage.sync.set({
+    theme_color: 'var(--ic-brand-global-nav-bgd)',
+  });
+  document.documentElement.style.setProperty('--bg-theme', defaultColor);
+}
 
 function setRollingPeriodEffects() {
   const checkbox = document.getElementById('rolling-period');
   const startSelector = document.getElementById('start-selector');
+  // Rolling mode ignores the manual start controls
   if (checkbox?.classList.contains('checked')) {
     startSelector?.classList.remove('show');
     startSelector?.classList.add('hide');
@@ -291,6 +375,7 @@ function setRollingPeriodEffects() {
 function setCustomColorEffects() {
   const checkbox = document.getElementById('custom-theme-color');
   const colorPicker = document.getElementById('color-options');
+  // Hide the picker when the override is off so the layout stays compact
   if (!checkbox?.classList.contains('checked')) {
     colorPicker?.classList.remove('show');
     colorPicker?.classList.add('hide');
@@ -305,6 +390,8 @@ function setBooleanOptions() {
     const checkbox = document.getElementById(b);
     if (checkbox) {
       checkbox.onclick = () => {
+        // The options page is still plain DOM code
+        // Keep the click path explicit so each side effect is easy to follow
         toggleClass('checked', checkbox);
         if (b !== 'custom-theme-color') {
           setBooleanOption(
@@ -316,7 +403,11 @@ function setBooleanOptions() {
           setRollingPeriodEffects();
         } else if (b === 'custom-theme-color') {
           setCustomColorEffects();
-          setThemeColor();
+          if (checkbox.classList.contains('checked')) {
+            setThemeColor(getRememberedThemeColor());
+          } else {
+            clearThemeColor();
+          }
         }
       };
     }
@@ -330,9 +421,14 @@ setMinutesDropdown();
 setListLengthDropdown();
 setAmPmDropdown();
 setPeriods();
+setAppearanceToggle();
+setRestoreDefaults();
+applyAppearanceTheme(getSavedAppearanceTheme());
+setAppearanceButtons(getSavedAppearanceTheme());
 
 chrome.storage.sync.get(storedUserOptions, (items) => {
   const options = applyDefaults(items as Options);
+  // Hydrate the plain DOM controls from storage before wiring the click handlers
   setSelectedPeriod(options.period.toLowerCase());
   setCheckbox('show-rings', options.show_rings);
   setCheckbox('rolling-period', options.rolling_period);
@@ -341,6 +437,7 @@ chrome.storage.sync.get(storedUserOptions, (items) => {
   setCheckbox('due-date-headings', options.due_date_headings);
   // setCheckbox('show-locked-assignments', options.show_locked_assignments);
   setCheckbox('show-confetti', options.show_confetti);
+  setCheckbox('dark-mode', options.dark_mode);
   setCheckbox('show-needs-grading', options.show_needs_grading);
   setCheckbox(
     'custom-theme-color',
@@ -349,12 +446,31 @@ chrome.storage.sync.get(storedUserOptions, (items) => {
   setCheckbox('color-tabs', options.color_tabs);
   setCheckbox('long-overdue', options.show_long_overdue);
   setCheckbox('clock-24hr', options.clock_24hr);
-  setCheckbox('GSCOPE_INT_disabled', !options.GSCOPE_INT_disabled);
-  setThemeColor(
-    options.theme_color !== OptionsDefaults.theme_color
-      ? options.theme_color
-      : ''
+  setCheckbox(
+    'blackboard-hide-announcements',
+    options.blackboard_hide_announcements
   );
+  setCheckbox(
+    'blackboard-show-only-graded',
+    options.blackboard_show_only_graded
+  );
+  setCheckbox(
+    'blackboard-hide-discussions',
+    options.blackboard_hide_discussions
+  );
+  setCheckbox(
+    'blackboard-hide-empty-courses',
+    options.blackboard_hide_courses_without_due_dates
+  );
+  setCheckbox('blackboard-diagnostics', options.blackboard_diagnostics);
+  if (options.theme_color !== OptionsDefaults.theme_color) {
+    rememberThemeColor(options.theme_color);
+    applyThemeColorPreview(options.theme_color);
+  } else {
+    // Keep the old custom color around in the picker even when the override is off
+    applyThemeColorPreview(getRememberedThemeColor());
+    document.documentElement.style.setProperty('--bg-theme', defaultColor);
+  }
   setSelectedDropdownOption(
     Object.keys(weekdays)[options.start_date - 1],
     'weekdays-options',

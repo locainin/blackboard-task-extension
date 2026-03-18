@@ -1,61 +1,107 @@
-# Tasks Browser Extension for Canvas Instructure
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8FV70G)
+# Tasks Browser Extension for Blackboard
 
-Ever had trouble finding your weekly assignments? Wish you had a nice progress bar to motivate you to complete everything?
+Ever had trouble finding weekly Blackboard assignments? Wish there was a cleaner progress view for current work?
 
-No? Well either way, the **Tasks Browser Extension for Canvas** is here to help!
+Either way, the **Tasks Browser Extension for Blackboard** is here to help
+
+## Fork Notice
+
+This repository contains an unofficial fork of the open-source Tasks for Canvas browser extension.
+
+- Original project:
+https://github.com/UseBetterCanvas/canvas-task-extension
+
+- Chrome Store Listing:
+https://chromewebstore.google.com/detail/iobjgdiplbeimhchihcmfbefepnpfpnk?utm_source=item-share-cb
+
+All credit for the original design, functionality, and ongoing development belongs to the original author and contributors.
+
+## Why This Fork Exists
+
+This fork exists somewhat backwards compared to a typical open-source workflow.
+
+I originally made this modification for personal use, then kept extending it to better fit Blackboard-specific behavior, layout, and workflow needs that were outside the original project scope.
+
+## What This Fork Changes
+
+This fork focuses on Blackboard-first behavior rather than multi-LMS support. It trims out unrelated runtime paths, adjusts the UI for Blackboard use, adds Blackboard-specific loading and filtering logic, and keeps the extension tuned around the way Blackboard pages actually behave.
+
+## Relationship To The Upstream Project
+
+- This fork is unofficial
+- It is not affiliated with or endorsed by the original author
+- All upstream credit and licensing are preserved
+- Users looking for the canonical version should use the original repository linked above
 
 ## Download
-[![Download for Chrome](https://img.shields.io/badge/Download_for-Chrome-4c8bf5?style=for-the-badge&logo=Googlechrome)](https://chrome.google.com/webstore/detail/tasks-for-canvas/kabafodfnabokkkddjbnkgbcbmipdlmb)
-[![Download for Firefox](https://img.shields.io/badge/Download_for-Firefox-ff9400?style=for-the-badge&logo=Firefoxbrowser&logoColor=White)](https://addons.mozilla.org/en-US/firefox/addon/tasks-for-canvas)<br>
-Edge, Opera, and Vivaldi are compatible with the Chrome version.
+This repo is now only intended for Blackboard-focused use. I have no intention of supporting canvas.
+
+(Canvas Is Better Than Blackboard Anyway)
 ## Features
 
 ### Stay on Track
 
 Colorful task items ensure that you'll never miss an assignment again.
 
-![](screenshots/Screenshot1.png)
+![](screenshots/assignments.png)
 
 ### Track Your Progress
 
 Visual progress bars for each of your courses show how far you are in completing your assignments this week.
 
-![](screenshots/Screenshot2.png)
+![](screenshots/menulight.png)
+
+![](screenshots/menudark.png)
 
 ### Make It Your Own
 
 Task items and progress bars correspond with your chosen dashboard colors and positions.
 
-![](screenshots/Screenshot3.png)
+![](screenshots/settings.png)
 
 ### Notes
 
 - The sidebar only works in Card View and Recent Activity.
 - Only courses that have assignments will appear in the chart.
-  - Alternatively, you can choose to show all dashboard courses in the options page.
-    - To change your dashboard courses, go to **Courses** in the left sidebar, go to **All Courses** and star the classes that you want on your dashboard.
-- The **Unfinished** assignments list will show all assignments from the dashboard courses that are both unsubmitted and ungraded or have a grade of 0.
+- The **Unfinished** assignments list will show current Blackboard work that is still incomplete.
 
 ## Installing and Running for Development
 
 ### Procedures:
 
-1. Check if your [Node.js](https://nodejs.org/) version is >= **10.13**.
+1. Check if [Node.js](https://nodejs.org/) is installed.
 2. Clone this repository.
-3. Run `npm install` to install the dependencies.
-4. Run `npm start`
+3. Install dependencies with either:
+   - `bun install`
+   - `npm install`
+4. Build the extension with either:
+   - `bun run build`
+   - `npm run build`
 5. If on Chrome: Load the extension following:
    1. Access `chrome://extensions/`
    2. Check `Developer mode`
    3. Click on `Load unpacked extension`
    4. Select the `build` folder.
 5. If on Firefox: Load the extension following:
-   1. Copy `canvas-task-extension-main/src/manifest-firefox.json` to `canvas-task-extension-main/build/manifest.json`
+   1. Copy `src/manifest-firefox.json` to `build/manifest.json`
    2. Access `about:debugging`
    3. Click on `This Firefox`
    4. Click `Load Temporary Add-on`
    5. Select the `build` folder and click on `manifest.json`
-7. Happy hacking.
+7. Reload Blackboard and confirm the sidebar appears.
+
+Useful development commands:
+
+- `bun run build`
+- `bun run test`
+- `bun run zip`
+- `npm run build`
+- `npm run test`
 
 Built with [Chrome Extension Boilerplate with React 17 and Webpack 5](https://github.com/lxieyang/chrome-extension-boilerplate-react.git)
+
+## Browser Testing Status
+
+This fork is currently only tested on Brave, which is Chromium-based.
+
+Firefox support remains in the repository, but Gecko behavior is currently untested in this fork.

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import RadialBarChart, { ChartData } from '../radial-bar-chart';
 import BeatLoader from '../spinners';
@@ -8,6 +8,7 @@ import useSelectChartData from './hooks/useBar';
 import Confetti from 'react-dom-confetti';
 import { OptionsDefaults } from '../../constants';
 import useCourseStore from '../../hooks/useCourseStore';
+import { DarkContext } from '../../contexts/contexts';
 
 /*
   Renders progress chart
@@ -22,25 +23,49 @@ const ChartContainer = styled.div.attrs((props: OpacityProps) => ({
 }))<OpacityProps>`
   width: 100%;
   display: flex;
-  flex-direction: column;
   justify-content: center;
-  align-items: center;
-  margin: 15px 0px;
 
   transition: opacity 0.3s ease-in-out;
 `;
 
+const ChartSurface = styled.div<{ dark?: boolean }>`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 12px;
+  border-radius: 28px;
+  border: 1px solid
+    ${(props) =>
+      props.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(79, 135, 255, 0.18),
+      transparent 56%
+    ),
+    ${(props) =>
+      props.dark
+        ? 'linear-gradient(180deg, rgba(23, 31, 52, 0.92) 0%, rgba(15, 22, 38, 0.9) 100%)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.98) 100%)'};
+  box-shadow: ${(props) =>
+    props.dark
+      ? '0 22px 42px rgba(0, 0, 0, 0.22)'
+      : '0 18px 34px rgba(31, 49, 88, 0.08)'};
+`;
+
 const SubtitleText = styled.div`
-  font-size: 13px;
-  font-weight: bold;
-  line-height: 1.25em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35em;
   color: ${(p) => p.color};
 `;
 
 const TitleText = styled.div`
-  font-size: 25px;
-  font-weight: bold;
-  line-height: 1.25em;
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  line-height: 1em;
   color: ${(p) => p.color};
 `;
 
@@ -75,6 +100,7 @@ export default function TaskChart({
   weekKey = '',
 }: TaskChartProps): JSX.Element {
   const courseStore = useCourseStore();
+  const darkMode = useContext(DarkContext);
   /* useMemo so it doesn't animate the bars when switching courses. */
   const [chartData, setChartData] = useState<ChartData>({
     bars: [{ id: '0', value: 0, max: 1, color: colorOverride || themeColor }],
@@ -171,26 +197,32 @@ export default function TaskChart({
       ) : (
         ''
       )}
-      <RadialBarChart
-        data={chartData}
-        onSelect={handleClick}
-        selectedBar={colorOverride ? '' : selectedCourseId}
-        size={chartData.bars.length < 7 ? 210 : 280}
-      >
-        {loading ? (
-          <BeatLoader color="#4c5860dd" loading size={10} />
-        ) : (
-          <>
-            <TitleText color={colorOverride || color}>{percent}</TitleText>
-            <SubtitleText color={colorOverride || color}>
-              {progress}
-            </SubtitleText>
-            <SubtitleText color={colorOverride || color}>
-              {complete}
-            </SubtitleText>
-          </>
-        )}
-      </RadialBarChart>
+      <ChartSurface dark={darkMode}>
+        <RadialBarChart
+          data={chartData}
+          onSelect={handleClick}
+          selectedBar={colorOverride ? '' : selectedCourseId}
+          size={chartData.bars.length < 7 ? 230 : 286}
+        >
+          {loading ? (
+            <BeatLoader
+              color={darkMode ? '#c3cad8' : '#536277'}
+              loading
+              size={10}
+            />
+          ) : (
+            <>
+              <TitleText color={colorOverride || color}>{percent}</TitleText>
+              <SubtitleText color={darkMode ? '#c3cad8' : '#536277'}>
+                {progress}
+              </SubtitleText>
+              <SubtitleText color={colorOverride || color}>
+                {complete}
+              </SubtitleText>
+            </>
+          )}
+        </RadialBarChart>
+      </ChartSurface>
     </ChartContainer>
   );
 }

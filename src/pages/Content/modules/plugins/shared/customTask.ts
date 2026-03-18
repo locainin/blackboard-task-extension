@@ -1,4 +1,8 @@
 import { AssignmentType, FinalAssignment } from '../../types';
+import {
+  safeStorageLocalGet,
+  safeStorageLocalSet,
+} from '../../utils/extensionContext';
 
 type StoredCustomTask = {
   name: string;
@@ -33,18 +37,20 @@ export async function loadCustomTasks(
   platformKey: string
 ): Promise<FinalAssignment[]> {
   const key = `${platformKey}_task`;
-  const tasks = await chrome.storage.local.get(key);
+  const tasks = await safeStorageLocalGet<Record<string, unknown>>(key, {});
   if (!(key in tasks)) return [];
-  return Object.keys(tasks[key] as Record<string, StoredCustomTask>).map((id) =>
-    parseStoredCustomTask(id, tasks[key][id])
+  const storedTasks = (tasks[key] as Record<string, StoredCustomTask>) || {};
+  return Object.keys(storedTasks).map((id) =>
+    parseStoredCustomTask(id, storedTasks[id])
   );
 }
 
 export async function deleteCustomTask(platformKey: string, id: string) {
   const key = `${platformKey}_task`;
-  const tasks = await chrome.storage.local.get(key);
-  if (id in tasks[key]) delete tasks[key][id];
-  chrome.storage.local.set({ [key]: tasks[key] });
+  const tasks = await safeStorageLocalGet<Record<string, unknown>>(key, {});
+  const storedTasks = (tasks[key] as Record<string, StoredCustomTask>) || {};
+  if (id in storedTasks) delete storedTasks[id];
+  await safeStorageLocalSet({ [key]: storedTasks });
 }
 
 /* Create a custom task item (Planner note). */
@@ -65,8 +71,14 @@ export async function createCustomTask(
   if (link) res.html_url = link;
   if (grading) res.grading = grading;
   const key = `${platformKey}_task`;
-  const tasks = await chrome.storage.local.get(key);
-  chrome.storage.local.set({ [key]: { ...tasks[key], [id]: res } });
+  const tasks = await safeStorageLocalGet<Record<string, unknown>>(key, {});
+  const storedTasks = (tasks[key] as Record<string, StoredCustomTask>) || {};
+  await safeStorageLocalSet({
+    [key]: {
+      ...storedTasks,
+      [id]: res,
+    },
+  });
   return parseStoredCustomTask(id, res);
 }
 

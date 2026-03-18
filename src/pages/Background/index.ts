@@ -1,6 +1,7 @@
-// Because I can't import these from the Content module
-const UNINSTALL_URL = 'https://www.tasksforcanvas.info/uninstall';
-const INSTALL_URL = 'https://www.tasksforcanvas.info/getting-started';
+// Keep install and support links inside the project repo
+const REPOSITORY_URL = 'https://github.com/locainin/blackboard-task-extension';
+const INSTALL_URL = `${REPOSITORY_URL}#installing-and-running-for-development`;
+const UNINSTALL_URL = `${REPOSITORY_URL}/issues/new`;
 
 chrome.runtime.onInstalled.addListener(function (object) {
   if (object.reason === 'install') {

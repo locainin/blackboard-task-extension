@@ -18,23 +18,35 @@ export const TaskContainer = styled.div.attrs(
     (props: AnimatedProps & DarkProps) => ({
       style: {
         height: props.height ? props.height : 0,
-        margin: props.opacity ? 5 * props.opacity : 0,
+        margin: props.opacity ? 4 * props.opacity : 0,
         opacity: props.opacity ? props.opacity : 0,
       },
     })
   )<AnimatedProps & DarkProps>`
     width: 100%;
-    background-color: ${(props) =>
-      props.dark ? 'var(--tfc-dark-mode-bg-primary)' : 'inherit'};
-    border-radius: 4px;
+    background: ${(props) =>
+      props.dark
+        ? 'linear-gradient(180deg, rgba(22, 31, 49, 0.96) 0%, rgba(15, 22, 38, 0.96) 100%)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 254, 0.98) 100%)'};
+    border-radius: 18px;
     display: flex;
     flex-direction: row;
     font-size: 12px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid
+      ${(props) =>
+        props.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
+    box-shadow: ${(props) =>
+      props.dark
+        ? '0 16px 28px rgba(0, 0, 0, 0.22)'
+        : '0 12px 24px rgba(31, 49, 88, 0.08)'};
     &:hover {
-      box-shadow: 0 4px 7px rgba(0, 0, 0, 0.3);
+      box-shadow: ${(props) =>
+        props.dark
+          ? '0 18px 34px rgba(0, 0, 0, 0.28)'
+          : '0 18px 32px rgba(31, 49, 88, 0.12)'};
+      transform: translateY(-1px);
     }
-    @keyframes canvas-tasks-skeleton-pulse {
+    @keyframes tasks-skeleton-pulse {
       50% {
         opacity: 0.5;
       }
@@ -43,17 +55,19 @@ export const TaskContainer = styled.div.attrs(
       }
     }
 
-    transition: box-shadow 0.2s;
+    transition:
+      box-shadow 0.2s,
+      transform 0.2s;
   `,
   TaskInfo = styled.div<DarkProps>`
     display: flex;
     flex-direction: column;
-    padding: 0px 6px 8px 6px;
+    padding: 10px 12px 10px 6px;
     box-sizing: border-box;
     width: 100%;
-    font-size: 11px;
+    font-size: 12px;
     color: ${(props) =>
-      props.dark ? 'var(--tfc-dark-mode-text-secondary)' : '#4c5860'};
+      props.dark ? 'var(--tfc-dark-mode-text-secondary)' : '#69758a'};
     overflow-x: auto;
     white-space: nowrap;
     overflow: hidden;
@@ -63,15 +77,16 @@ export const TaskContainer = styled.div.attrs(
     color: ${(props) =>
       props.dark
         ? 'var(--tfc-dark-mode-text-primary)'
-        : 'var(--ic-brand-font-color-dark)'};
+        : '#172033'};
     opacity: ${(props) => (props.opacity ? props.opacity : '1')};
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: 750;
+    font-size: 17px;
+    letter-spacing: -0.03em;
     &:hover {
       color: ${(props) =>
         props.dark
           ? 'var(--tfc-dark-mode-text-primary)'
-          : 'var(--ic-brand-font-color-dark)'};
+          : '#172033'};
       text-decoration: underline;
     }
     text-decoration: none;
@@ -81,11 +96,12 @@ export const TaskContainer = styled.div.attrs(
     text-overflow: ellipsis;
   `,
   TaskLeft = styled.div`
-    width: 40px;
-    height: 100%;
-    border-radius: 4px 0px 0px 4px;
+    width: 46px;
+    min-width: 46px;
+    margin: 7px 0 7px 7px;
+    border-radius: 14px;
     background-color: ${(props) => props.color};
-    padding: 6px;
+    padding: 8px;
     padding-bottom: 8px;
     box-sizing: border-box;
     display: flex;
@@ -98,7 +114,10 @@ export const TaskContainer = styled.div.attrs(
   CourseCodeText = styled.div`
     color: ${(props) => props.color};
     font-weight: 700;
-    margin-top: 4px;
+    margin-top: 2px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     overflow-x: auto;
     white-space: nowrap;
     overflow: hidden;
@@ -109,6 +128,7 @@ export const TaskContainer = styled.div.attrs(
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
   `,
   TaskDetailsText = styled.div<AnimatedProps>`
     overflow-x: auto;
@@ -116,6 +136,7 @@ export const TaskContainer = styled.div.attrs(
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: ${(props) => (props.opacity ? props.opacity : '1')};
+    font-weight: 500;
   `,
   SkeletonTitle = styled.div<AnimatedProps & DarkProps>`
     width: 90%;
@@ -124,7 +145,7 @@ export const TaskContainer = styled.div.attrs(
     border-radius: 100px;
     margin: 2px 0px;
     animation: ${(props) =>
-      props.static ? 'none' : 'canvas-tasks-skeleton-pulse 1s infinite'};
+      props.static ? 'none' : 'tasks-skeleton-pulse 1s infinite'};
   `,
   SkeletonInfo = styled.div<AnimatedProps & DarkProps>`
     width: 75%;
@@ -135,7 +156,7 @@ export const TaskContainer = styled.div.attrs(
     animation: ${(props) =>
       props.static
         ? 'none'
-        : 'canvas-tasks-skeleton-pulse 1s 0.5s infinite linear both'};
+        : 'tasks-skeleton-pulse 1s 0.5s infinite linear both'};
   `,
   SkeletonCourseCode = styled.div<AnimatedProps & DarkProps>`
     width: 50%;
@@ -147,7 +168,7 @@ export const TaskContainer = styled.div.attrs(
     animation: ${(props) =>
       props.static
         ? 'none'
-        : 'canvas-tasks-skeleton-pulse 1s 0.5s infinite linear both'};
+        : 'tasks-skeleton-pulse 1s 0.5s infinite linear both'};
   `;
 export interface TaskProps {
   assignment?: FinalAssignment;
@@ -247,10 +268,7 @@ export default function TaskCard({
     }
   }
   const darkMode = useContext(DarkContext);
-  const canBeDeleted = [
-    AssignmentType.NOTE,
-    AssignmentType.GRADESCOPE,
-  ].includes(assignment.type);
+  const canBeDeleted = [AssignmentType.NOTE].includes(assignment.type);
   return (
     <TaskContainer
       dark={darkMode}

@@ -8,6 +8,7 @@ type Props = {
   onClick?: () => void;
   hovering?: boolean;
   hoverIndependent?: boolean;
+  size?: number;
 };
 
 export default function ArrowButton({
@@ -17,6 +18,7 @@ export default function ArrowButton({
   onClick,
   hovering = false,
   hoverIndependent = true,
+  size = 24,
 }: Props): JSX.Element {
   const [isHovering, setHovering] = useState(hovering);
   function handleClick() {
@@ -44,19 +46,31 @@ export default function ArrowButton({
       style={{
         backgroundColor:
           hoverIndependent && !disabled && isHovering
-            ? '#4c586040'
-            : 'transparent',
+            ? dark
+              ? 'rgba(255, 255, 255, 0.1)'
+              : 'rgba(15, 23, 42, 0.08)'
+            : hoverIndependent
+            ? 'transparent'
+            : dark
+            ? 'rgba(255, 255, 255, 0.04)'
+            : 'rgba(15, 23, 42, 0.04)',
         display: 'flex',
-        padding: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
         borderRadius: 100,
+        border: `1px solid ${
+          dark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)'
+        }`,
         transform: `rotate(${rotation[direction]}deg)`,
         cursor: !disabled ? 'pointer' : 'default',
       }}
     >
       <svg
-        height="8"
+        height={size <= 22 ? '7' : '8'}
         viewBox="0 0 24 24"
-        width="8"
+        width={size <= 22 ? '7' : '8'}
         xmlns="http://www.w3.org/2000/svg"
       >
         <path

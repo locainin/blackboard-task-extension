@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a Blackboard-focused improvement
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing
+      description: Describe the Blackboard workflow that still feels slow or awkward
+      placeholder: Blackboard messages are hard to scan and take too many clicks
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the improvement as clearly as possible
+      placeholder: Add a messages view that groups recent course messages in one place
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Blackboard context
+      description: Mention whether this is Original or Ultra if known, and where the feature would appear
+      placeholder: Original course messages page, student view
+

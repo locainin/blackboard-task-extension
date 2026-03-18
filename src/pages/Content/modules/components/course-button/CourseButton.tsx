@@ -8,28 +8,20 @@ interface StyledButtonProps {
 }
 
 const StyledButton = styled.div<StyledButtonProps>`
-  border-bottom: 1px solid rgba(199, 205, 209, 0.5);
-  font-weight: bold;
+  font-weight: 650;
   font-size: 14px;
   line-height: 1.4;
   position: relative;
-  padding: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background-color: inherit;
-  opacity: 100%;
   z-index: 20;
   &:hover {
     cursor: pointer;
-    background: rgba(150, 150, 150, 0.2);
+    background: rgba(79, 135, 255, 0.12);
   }
   display: ${(props) => (props.menuVisible ? 'block' : 'none')};
   color: ${(props) => props.color};
-  ${(props) =>
-    props.last
-      ? `
-    border-radius: 0px 0px 4px 4px;
-    border-bottom: none;
-  `
-      : ''}
 `;
 
 export interface CourseButtonProps {

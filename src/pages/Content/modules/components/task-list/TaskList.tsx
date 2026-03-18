@@ -26,13 +26,15 @@ const ListContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 5px;
+  margin-top: 10px;
   padding: 0px;
-  padding-bottom: 5px;
+  padding-bottom: 6px;
+  gap: 8px;
 `;
 
 const ListWrapper = styled.div`
-  margin: 10px 0px 25px 0px;
+  margin: 0 0 6px;
+  width: 100%;
 `;
 
 const ConfettiWrapper = styled.div`
@@ -54,7 +56,16 @@ interface ViewMoreProps {
   onClick: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 const ViewMore = styled.a<ViewMoreProps>`
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-self: center;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(79, 135, 255, 0.1);
+  color: #4f87ff;
+  font-size: 0.83rem;
+  font-weight: 650;
+  text-decoration: none;
 `;
 
 export interface TaskListProps {
@@ -78,7 +89,7 @@ function startTransition() {
 }
 function enterTransition() {
   return {
-    height: [65],
+    height: [74],
     opacity: [1],
     timing: { duration: 500, ease: easeQuadInOut },
   };
@@ -94,7 +105,7 @@ function leaveTransition() {
 // some animations become "updates" instead of "enters" when switching tabs during them
 function updateTransition() {
   return {
-    height: [65],
+    height: [74],
     opacity: [1],
     timing: { duration: 500, ease: easeQuadInOut },
   };
@@ -374,14 +385,29 @@ export default function TaskList({
   }
 
   const numNotifs = announcements.filter((x) => !x.marked_complete).length;
+  const showAnnouncementsTab = allAnnouncementList.length > 0;
+  const showUnfinishedTab = !options.blackboard_show_only_graded;
+  const showNeedsGradingTab =
+    options.show_needs_grading && !options.blackboard_show_only_graded;
+  const preferredTab: TaskTypeTab = showUnfinishedTab
+    ? 'Unfinished'
+    : showAnnouncementsTab
+    ? 'Announcements'
+    : showNeedsGradingTab
+    ? 'NeedsGrading'
+    : 'Completed';
 
   const iconColor = useMemo(() => {
     if (selectedCourseId && selectedCourseId in courseStore.state)
       return courseStore.state[selectedCourseId].color;
+
+    // Dark mode needs a brighter accent than Blackboard's default navy
+    // The default theme color is too low-contrast against the darker panel
+    if (darkMode) return '#4f87ff';
+
     if (options?.color_tabs) return options?.theme_color || THEME_COLOR;
-    if (darkMode) return '#6c757c';
     return 'var(--ic-brand-font-color-dark)';
-  }, [options, selectedCourseId, courseStore]);
+  }, [darkMode, options, selectedCourseId, courseStore]);
 
   const hideUnfinishedList: boolean =
     unfinishedList.length === 0 && options.show_needs_grading;
@@ -390,9 +416,15 @@ export default function TaskList({
     currentTab === 'Unfinished' && hideUnfinishedList
       ? 'NeedsGrading'
       : currentTab;
+  const finalVisibleTab: TaskTypeTab =
+    (visibleTab === 'Announcements' && !showAnnouncementsTab) ||
+    (visibleTab === 'Unfinished' && !showUnfinishedTab) ||
+    (visibleTab === 'NeedsGrading' && !showNeedsGradingTab)
+      ? preferredTab
+      : visibleTab;
 
   const viewMoreText = !viewingMore
-    ? `View ${allList[visibleTab].length - listLength} more`
+    ? `View ${allList[finalVisibleTab].length - listLength} more`
     : 'View less';
 
   const noneText = 'None';
@@ -412,12 +444,13 @@ export default function TaskList({
     <ListWrapper>
       <IconSubTabs
         activeColor={iconColor}
-        assignmentsEmpty={unfinishedList.length === 0}
         dark={darkMode}
-        gradebook={options.show_needs_grading}
         notifs={numNotifs}
+        showAnnouncements={showAnnouncementsTab}
+        showNeedsGrading={showNeedsGradingTab}
+        showUnfinished={showUnfinishedTab && !hideUnfinishedList}
         setTaskListState={setCurrentTab}
-        taskListState={visibleTab}
+        taskListState={finalVisibleTab}
       />
       {showConfetti && (
         <ConfettiWrapper>
@@ -431,7 +464,7 @@ export default function TaskList({
           />
         </ConfettiWrapper>
       )}
-      <HideDiv visible={visibleTab === 'Announcements'}>
+      <HideDiv visible={finalVisibleTab === 'Announcements'}>
         <ListContainer>
           <NodeGroup
             data={loading ? [] : announcementList}
@@ -446,7 +479,7 @@ export default function TaskList({
           {announcementList.length === 0 && <span>{noneText}</span>}
         </ListContainer>
       </HideDiv>
-      <HideDiv visible={visibleTab === 'Unfinished'}>
+      <HideDiv visible={finalVisibleTab === 'Unfinished'}>
         <ListContainer>
           <NodeGroup
             data={loading ? [] : unfinishedList}
@@ -460,7 +493,7 @@ export default function TaskList({
           </NodeGroup>
         </ListContainer>
       </HideDiv>
-      <HideDiv visible={visibleTab === 'NeedsGrading'}>
+      <HideDiv visible={finalVisibleTab === 'NeedsGrading'}>
         <ListContainer>
           <NodeGroup
             data={loading ? [] : gradingList}
@@ -475,7 +508,7 @@ export default function TaskList({
         </ListContainer>
       </HideDiv>
 
-      <HideDiv visible={visibleTab === 'Completed'}>
+      <HideDiv visible={finalVisibleTab === 'Completed'}>
         <ListContainer>
           <NodeGroup
             data={loading ? [] : completedList}
@@ -490,14 +523,15 @@ export default function TaskList({
           {completedList.length === 0 && <span>{noneText}</span>}
         </ListContainer>
       </HideDiv>
-      {allList[visibleTab].length > listLength && (
+      {allList[finalVisibleTab].length > listLength && (
         <ViewMore href="#" onClick={handleViewMoreClick}>
           {viewMoreText}
         </ViewMore>
       )}
-      {(visibleTab === 'Unfinished' || visibleTab === 'NeedsGrading') && (
+      {(finalVisibleTab === 'Unfinished' ||
+        finalVisibleTab === 'NeedsGrading') && (
         <CreateTaskCard
-          grading={visibleTab === 'NeedsGrading'}
+          grading={finalVisibleTab === 'NeedsGrading'}
           onSubmit={createAssignment}
           selectedCourse={selectedCourseId}
         />

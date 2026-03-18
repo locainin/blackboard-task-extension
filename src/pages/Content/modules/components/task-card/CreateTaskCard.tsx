@@ -9,42 +9,51 @@ import { DarkProps } from '../../types/props';
 
 export const TaskContainer = styled.div<DarkProps>`
   width: 100%;
-  height: 36px;
-  margin: 10px 0px 5px 0px;
-  border-radius: 4px;
+  height: 52px;
+  margin: 12px 0px 6px 0px;
+  border-radius: 18px;
   display: flex;
   flex-direction: row;
   align-items: center;
   font-size: 12px;
-  background-color: ${(props) =>
+  background: ${(props) =>
     props.dark
-      ? 'var(--tfc-dark-mode-bg-primary)'
-      : 'rgba(220, 220, 220, 0.4)'};
+      ? 'linear-gradient(180deg, rgba(22, 31, 49, 0.92) 0%, rgba(15, 22, 38, 0.92) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 254, 0.96) 100%)'};
+  border: 1px solid
+    ${(props) =>
+      props.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
   &:hover {
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: ${(props) =>
+      props.dark
+        ? '0 18px 34px rgba(0, 0, 0, 0.24)'
+        : '0 18px 32px rgba(31, 49, 88, 0.12)'};
     cursor: pointer;
   }
   transition: box-shadow 0.2s;
 `;
 
-const TaskInfo = styled.div`
+const TaskInfo = styled.div<DarkProps>`
   display: flex;
   flex-direction: column;
-  padding: 4px 6px 6px 6px;
+  padding: 4px 10px 4px 6px;
   box-sizing: border-box;
   width: 100%;
   font-size: 11px;
-  color: #4c5860;
+  color: ${(props) =>
+    props.dark ? 'var(--tfc-dark-mode-text-secondary)' : '#69758a'};
   overflow-x: auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
-const TaskTitle = styled.div`
-  color: #7c858c;
+const TaskTitle = styled.div<DarkProps>`
+  color: ${(props) =>
+    props.dark ? 'var(--tfc-dark-mode-text-secondary)' : '#69758a'};
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
+  letter-spacing: -0.03em;
   overflow-x: auto;
   white-space: nowrap;
   overflow: hidden;
@@ -81,13 +90,13 @@ export default function CreateTaskCard({
     <>
       <TaskContainer dark={darkMode} onClick={onClick}>
         <TaskLeft
-          color={darkMode ? 'var(--tfc-dark-mode-bg-secondary)' : '#d8d8d8'}
+          color={darkMode ? 'var(--tfc-dark-mode-bg-secondary)' : '#e6ecf8'}
           onClick={onClick}
         >
           {PlusIcon}
         </TaskLeft>
-        <TaskInfo>
-          <TaskTitle>{text}</TaskTitle>
+        <TaskInfo dark={darkMode}>
+          <TaskTitle dark={darkMode}>{text}</TaskTitle>
         </TaskInfo>
       </TaskContainer>
       {formVisible && (

@@ -13,9 +13,13 @@ export const THEME_COLOR_LIGHT = 'rgba(199, 205, 209)';
 
 export const CLIENT_ID_LENGTH = 9;
 
-export const HOME_WEBSITE = 'https://www.tasksforcanvas.info';
-export const UNINSTALL_URL = 'https://www.tasksforcanvas.info/uninstall';
-export const INSTALL_URL = 'https://www.tasksforcanvas.info/getting-started';
+export const REPOSITORY_URL =
+  'https://github.com/locainin/blackboard-task-extension';
+export const HOME_WEBSITE = REPOSITORY_URL;
+export const SUPPORT_URL = `${REPOSITORY_URL}/issues/new`;
+export const UNINSTALL_URL = SUPPORT_URL;
+export const INSTALL_URL =
+  'https://github.com/locainin/blackboard-task-extension#installing-and-running-for-development';
 export const EXPERIMENT_CONFIG_URL =
   'https://canvas-task-static.onrender.com/live.json';
 

@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a broken Blackboard behavior in the extension
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this
+
+        Include the Blackboard page, what was expected, and what actually happened
+  - type: input
+    id: page
+    attributes:
+      label: Blackboard page
+      description: Which Blackboard page showed the problem
+      placeholder: Course content, grades, messages, calendar, dashboard
+    validations:
+      required: true
+  - type: textarea
+    id: bug
+    attributes:
+      label: What went wrong
+      description: A short description of the broken behavior
+      placeholder: The course filter opens, but the list is empty
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Enough detail to reproduce the problem
+      placeholder: |
+        1. Open Blackboard
+        2. Open the task panel
+        3. Click All Courses
+        4. The menu opens with no options
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      placeholder: The course list should show every visible Blackboard course
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Browser and extension details
+      description: Browser version, extension build, and Blackboard deployment if known
+      placeholder: Chrome 134, unpacked build from main, Blackboard Learn SaaS
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or console errors
+      description: Paste errors or drag in screenshots if available
+

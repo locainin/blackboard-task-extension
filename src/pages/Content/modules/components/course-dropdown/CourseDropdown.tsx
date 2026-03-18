@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import { DarkContext } from '../../contexts/contexts';
 import { Direction } from '../../types';
@@ -15,44 +16,71 @@ const CourseTitle = styled.div<CourseTitleProps & DarkProps>`
   align-items: center;
   justify-content: space-between;
   flex-direction: row;
-  padding: 8px 10px;
-  height: 15px;
+  padding: 14px 16px;
   color: ${(p) => (!p.color ? 'inherit' : p.color)};
-  font-weight: bold;
+  font-weight: 650;
   font-size: 14px;
   line-height: 1.2;
   position: relative;
-  border-bottom: 1px solid
+  border: 1px solid
     ${(p) =>
-      p.dark ? 'var(--tfc-dark-mode-text-secondary)' : 'rgba(199, 205, 209)'};
+      p.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
+  border-radius: 20px;
+  background: ${(p) =>
+    p.dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)'};
   &:hover {
     cursor: pointer;
   }
   z-index: 20;
-  height: auto;
 `;
 
 interface DropdownProps {
+  inlineMenu?: boolean;
   maxHeight?: number;
   zIndex?: number;
 }
 
 const Dropdown = styled.div<DropdownProps & DarkProps>`
-  position: absolute;
-  z-index: ${(props) => props.zIndex || 20};
-  max-height: ${(props) => props.maxHeight + 'px' || 'auto'};
+  position: ${(props) => (props.inlineMenu ? 'relative' : 'absolute')};
+  top: ${(props) => (props.inlineMenu ? '0' : 'calc(100% + 10px)')};
+  left: 0;
+  z-index: ${(props) => props.zIndex || 240};
+  max-height: ${(props) =>
+    typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : '320px'};
   display: flex;
   flex-direction: column;
+  margin-top: ${(props) => (props.inlineMenu ? '8px' : '0')};
+  overflow-x: hidden;
   overflow-y: auto;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  background-color: ${(props) =>
-    props.dark ? 'var(--tfc-dark-mode-bg-primary-2)' : 'white'};
-  border-radius: 0px 0px 4px 4px;
+  padding: 8px;
+  box-sizing: border-box;
+  box-shadow: ${(props) =>
+    props.dark
+      ? '0 24px 48px rgba(0, 0, 0, 0.34)'
+      : '0 20px 42px rgba(31, 49, 88, 0.16)'};
+  background: ${(props) =>
+    props.dark
+      ? 'linear-gradient(180deg, rgb(23, 31, 49) 0%, rgb(19, 27, 44) 100%)'
+      : 'rgb(255, 255, 255)'};
+  border: 1px solid
+    ${(props) =>
+      props.dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(15, 23, 42, 0.08)'};
+  border-radius: 20px;
   width: 100%;
+  overscroll-behavior: contain;
 `;
 
-const CourseDropdownContainer = styled.div`
+const CourseDropdownContainer = styled.div<{ menuVisible: boolean }>`
   position: relative;
+  z-index: ${(props) => (props.menuVisible ? 260 : 1)};
+`;
+
+const EmptyState = styled.div<DarkProps>`
+  padding: 14px 16px;
+  color: ${(props) =>
+    props.dark ? 'var(--tfc-dark-mode-text-secondary)' : '#69758a'};
+  font-size: 13px;
+  font-weight: 600;
 `;
 
 export interface DropdownChoice {
@@ -64,6 +92,7 @@ export interface DropdownChoice {
 export interface CourseDropdownProps {
   choices: DropdownChoice[];
   defaultColor?: string;
+  inlineMenu?: boolean;
   selectedId?: string;
   setChoice: (id: string) => void;
   onCoursePage: boolean;
@@ -74,6 +103,14 @@ export interface CourseDropdownProps {
   instructureStyle?: boolean;
 }
 
+interface MenuPosition {
+  left: number;
+  top: number;
+  width: number;
+  maxHeight: number;
+  openUpward: boolean;
+}
+
 /*
   Renders the current filtered course and dropdown menu to change the current course
 */
@@ -81,6 +118,7 @@ export default function CourseDropdown({
   choices,
   defaultOption,
   defaultColor,
+  inlineMenu = false,
   noDefault,
   maxHeight,
   zIndex,
@@ -90,8 +128,93 @@ export default function CourseDropdown({
   onCoursePage = false,
 }: CourseDropdownProps): JSX.Element {
   const darkMode = useContext(DarkContext);
+  // Keep refs for both the trigger and the portal menu
+  // Outside-click handling and viewport positioning need both nodes
+  const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const [hovering, setHovering] = useState(false);
+  const safeChoices = useMemo(
+    () => choices.filter((choice): choice is DropdownChoice => Boolean(choice)),
+    [choices]
+  );
+
+  useEffect(() => {
+    if (!menuVisible) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const targetNode = event.target as Node;
+      const inTrigger = containerRef.current?.contains(targetNode);
+      const inMenu = menuRef.current?.contains(targetNode);
+      if (!inTrigger && !inMenu) {
+        setMenuVisible(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [menuVisible]);
+
+  useEffect(() => {
+    if (!menuVisible || inlineMenu) return;
+
+    function updateMenuPosition() {
+      if (!containerRef.current) return;
+
+      // Read from visualViewport when available
+      // That keeps the menu aligned during zoom and mobile-sized viewport changes
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportPadding = 12;
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const desiredWidth = rect.width;
+      const maxWidth = Math.max(120, viewportWidth - viewportPadding * 2);
+      const width = Math.min(desiredWidth, maxWidth);
+      const minLeft = viewportLeft + viewportPadding;
+      const maxLeft = viewportLeft + viewportWidth - width - viewportPadding;
+      const left = Math.min(Math.max(rect.left, minLeft), maxLeft);
+      const roomBelow = viewportTop + viewportHeight - rect.bottom - viewportPadding;
+      const roomAbove = rect.top - viewportTop - viewportPadding;
+      const desiredHeight = typeof maxHeight === 'number' ? maxHeight : 320;
+      const shouldOpenUpward = roomBelow < 220 && roomAbove > roomBelow;
+      const availableHeight = shouldOpenUpward ? roomAbove : roomBelow;
+      const boundedHeight = Math.min(desiredHeight, Math.max(0, availableHeight));
+      const top = shouldOpenUpward
+        ? Math.max(
+            viewportTop + viewportPadding,
+            rect.top - boundedHeight - 10
+          )
+        : rect.bottom + 10;
+
+      // Render the popover in the document layer
+      // This keeps the menu above the chart instead of fighting local stacking contexts
+      // Clamp it to the viewport so the panel still works near the bottom of the page
+      setMenuPosition({
+        left,
+        top,
+        width,
+        maxHeight: boundedHeight,
+        openUpward: shouldOpenUpward,
+      });
+    }
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.visualViewport?.addEventListener('resize', updateMenuPosition);
+    window.visualViewport?.addEventListener('scroll', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.visualViewport?.removeEventListener('resize', updateMenuPosition);
+      window.visualViewport?.removeEventListener('scroll', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [inlineMenu, maxHeight, menuVisible]);
+
   function onHover() {
     setHovering(true);
   }
@@ -100,16 +223,19 @@ export default function CourseDropdown({
   }
 
   const selectedChoice = (() => {
+    // Fall back to a neutral "All Courses" shell when the current id is missing
+    // Blackboard page transitions can briefly desync the choice list and selected id
     if (selectedId) {
-      const filtered = choices.filter((choice) => choice.id == selectedId);
+      const filtered = safeChoices.filter((choice) => choice.id == selectedId);
       if (filtered.length) return filtered[0];
     }
-    if (choices.length === 0)
+    if (safeChoices.length === 0)
       return {
+        id: '',
         name: 'All Courses',
         color: defaultColor || '#000000',
       };
-    return choices[0];
+    return safeChoices[0];
   })();
 
   const name = selectedId
@@ -124,11 +250,80 @@ export default function CourseDropdown({
     : 'var(--ic-brand-font-color-dark)';
 
   function toggleMenu() {
+    // Keep the closed state cheap when there is nothing to pick from
+    if (!safeChoices.length && !selectedId && !onCoursePage) return;
     setMenuVisible(!menuVisible);
   }
 
+  const menuContent = (
+    <Dropdown
+      dark={darkMode}
+      inlineMenu={inlineMenu}
+      maxHeight={menuPosition?.maxHeight || maxHeight}
+      ref={menuRef}
+      style={
+        inlineMenu || !menuPosition
+          ? undefined
+          : {
+              // The fixed portal menu escapes sidebar overflow and chart stacking
+              position: 'fixed',
+              left: `${menuPosition.left}px`,
+              top: `${menuPosition.top}px`,
+              width: `${menuPosition.width}px`,
+              transformOrigin: menuPosition.openUpward
+                ? 'bottom center'
+                : 'top center',
+              zIndex: zIndex || 10000,
+            }
+      }
+      zIndex={zIndex}
+    >
+      {!noDefault && !onCoursePage && selectedId && (
+        <CourseButton
+          color={
+            darkMode
+              ? 'var(--tfc-dark-mode-text-primary)'
+              : 'var(--ic-brand-font-color-dark)'
+          }
+          id=""
+          last={false}
+          menuVisible={menuVisible}
+          name={defaultOption || 'All Courses'}
+          setCourse={setChoice}
+          setMenuVisible={setMenuVisible}
+        />
+      )}
+      {onCoursePage && selectedId ? (
+        <CourseButton
+          color={selectedChoice.color}
+          id={selectedId}
+          last
+          menuVisible={menuVisible}
+          name={selectedChoice.name}
+          setCourse={setChoice}
+          setMenuVisible={setMenuVisible}
+        />
+      ) : safeChoices.length ? (
+        safeChoices.map((choice, i) => (
+          <CourseButton
+            color={choice.color}
+            id={choice.id}
+            key={`course-btn-${choice.id}`}
+            last={i === safeChoices.length - 1}
+            menuVisible={menuVisible}
+            name={choice.name}
+            setCourse={setChoice}
+            setMenuVisible={setMenuVisible}
+          />
+        ))
+      ) : (
+        <EmptyState dark={darkMode}>No courses found</EmptyState>
+      )}
+    </Dropdown>
+  );
+
   return (
-    <CourseDropdownContainer>
+    <CourseDropdownContainer menuVisible={menuVisible} ref={containerRef}>
       {instructureStyle ? (
         <TextInput
           color={defaultColor}
@@ -155,47 +350,13 @@ export default function CourseDropdown({
           />
         </CourseTitle>
       )}
-      <Dropdown dark={darkMode} maxHeight={maxHeight} zIndex={zIndex}>
-        {!noDefault && !onCoursePage && selectedId && (
-          <CourseButton
-            color={
-              darkMode
-                ? 'var(--tfc-dark-mode-text-primary)'
-                : 'var(--ic-brand-font-color-dark)'
-            }
-            id=""
-            last={false}
-            menuVisible={menuVisible}
-            name={defaultOption || 'All Courses'}
-            setCourse={setChoice}
-            setMenuVisible={setMenuVisible}
-          />
-        )}
-        {onCoursePage && selectedId ? (
-          <CourseButton
-            color={selectedChoice.color}
-            id={selectedId}
-            last
-            menuVisible={menuVisible}
-            name={selectedChoice.name}
-            setCourse={setChoice}
-            setMenuVisible={setMenuVisible}
-          />
-        ) : (
-          choices.map((choice, i) => (
-            <CourseButton
-              color={choice.color}
-              id={choice.id}
-              key={`course-btn-${choice.id}`}
-              last={i === choices.length - 1}
-              menuVisible={menuVisible}
-              name={choice.name}
-              setCourse={setChoice}
-              setMenuVisible={setMenuVisible}
-            />
-          ))
-        )}
-      </Dropdown>
+      {menuVisible
+        ? inlineMenu
+          ? menuContent
+          : document.body
+          ? ReactDOM.createPortal(menuContent, document.body)
+          : menuContent
+        : null}
     </CourseDropdownContainer>
   );
 }

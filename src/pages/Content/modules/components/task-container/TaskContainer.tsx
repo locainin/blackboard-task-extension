@@ -93,7 +93,6 @@ function TaskContainer({
       return filterCourses([courseId], Object.values(announcementStore.state));
     return Object.values(announcementStore.state);
   }, [announcementStore.assignmentList, courseId]);
-
   // force the chart to update each week, but make sure the key updates in sync with assignments
   const weekKey = useMemo(() => startDate.toISOString(), [updatedAssignments]);
 
@@ -123,14 +122,17 @@ function TaskContainer({
     });
   }, [updatedAssignments]);
 
-  // only courses in chart can be filtered by and shown in dropdown
+  // keep the chart focused on courses that actually affect the rings
   const chartCourses: string[] = useMemo(() => {
     if (courseList && courseId !== false)
       return courseId ? courseList.filter((c) => c === courseId) : [];
     // get only the courses with assignments
     const extracted = extractCourses(chartAssignments);
+    const skipBlackboardCoursePadding =
+      lms.name === 'Blackboard' &&
+      options.blackboard_hide_courses_without_due_dates;
     // if showing all dashboard courses, add the courses with no assignments
-    if (options.dash_courses && courseList) {
+    if (options.dash_courses && courseList && !skipBlackboardCoursePadding) {
       const inExtracted = new Set();
       extracted.forEach((id) => inExtracted.add(id));
       const dash = courseStore.dashCourses;
@@ -143,6 +145,28 @@ function TaskContainer({
     return extracted;
   }, [chartAssignments, courseId, courseList]);
 
+  // keep the filter menu stable even when the current window has no chart data
+  const selectableCourseIds = useMemo(() => {
+    if (courseList && courseId !== false)
+      return courseId ? courseList.filter((c) => c === courseId) : [];
+
+    const dash = courseStore.dashCourses;
+    if (options.dash_courses && dash) {
+      const visibleDashCourses = courseList.filter((id) => dash.has(id));
+      if (visibleDashCourses.length) return visibleDashCourses;
+    }
+
+    return courseList;
+  }, [courseId, courseList, courseStore.dashCourses, options.dash_courses]);
+
+  const filterDropdownChoices = useMemo(() => {
+    // The synthetic custom-task course is useful in forms
+    // It should not replace the course filter header in the main sidebar
+    return courseStore
+      .getCourseList(selectableCourseIds)
+      .filter((course) => course.id !== '0');
+  }, [courseStore, selectableCourseIds]);
+
   // Don't let user switch courses when on a course page
   const chosenCourseId = courseId ? courseId : selectedCourseId;
 
@@ -154,10 +178,12 @@ function TaskContainer({
         <CourseStoreContext.Provider value={courseStore}>
           <ExperimentsContext.Provider value={exp}>
             <CourseDropdown
-              choices={courseStore.getCourseList(chartCourses)}
+              choices={filterDropdownChoices}
+              maxHeight={320}
               onCoursePage={!!courseId}
               selectedId={chosenCourseId}
               setChoice={setSelectedCourseId}
+              zIndex={120}
             />
             {options.show_rings ? (
               <TaskChart
@@ -197,14 +223,6 @@ function TaskContainer({
   );
 }
 
-/*
-  compareProps function so content is re-rendered only when loading state changes
-*/
-function compareProps(
-  prevProps: TaskContainerProps,
-  nextProps: TaskContainerProps
-) {
-  return prevProps.loading == nextProps.loading;
-}
-
-export default React.memo(TaskContainer, compareProps);
+// Let React watch the full prop set here
+// Option changes like dark mode need to flow through the full task surface immediately
+export default React.memo(TaskContainer);

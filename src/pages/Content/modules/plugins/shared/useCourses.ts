@@ -19,8 +19,11 @@ export const makeUseCourses = (loader: () => Promise<Course[]>) => {
       errorMessage: '',
     });
     useEffect(() => {
+      let active = true;
+
       loader()
         .then((res) => {
+          if (!active) return;
           setState({
             data: [CustomCourse].concat(res),
             isSuccess: true,
@@ -29,6 +32,7 @@ export const makeUseCourses = (loader: () => Promise<Course[]>) => {
           });
         })
         .catch((err) => {
+          if (!active) return;
           console.error(err);
           setState({
             data: null,
@@ -37,7 +41,10 @@ export const makeUseCourses = (loader: () => Promise<Course[]>) => {
             errorMessage: err.message,
           });
         });
-    }, []);
+      return () => {
+        active = false;
+      };
+    }, [defaultColor]);
     return state;
   };
 };

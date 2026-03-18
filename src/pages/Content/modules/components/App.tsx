@@ -7,11 +7,66 @@ import { useOptionsStore } from '../hooks/useOptions';
 import { OptionsContext } from '../contexts/contexts';
 import { Options } from '../types';
 import { LMSConfig } from '../types/config';
-import { CanvasLMSConfig } from '../plugins/canvas';
+import { BlackboardLMSConfig } from '../plugins/blackboard';
+import { DarkProps } from '../types/props';
 
-const AppContainer = styled.div`
+const AppContainer = styled.div<DarkProps>`
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: 30px;
+  position: relative;
+  color: ${(props) =>
+    props.dark ? 'var(--tfc-dark-mode-text-primary)' : '#172033'};
+  background: ${(props) =>
+    props.dark
+      ? 'linear-gradient(180deg, rgba(12, 18, 33, 0.96) 0%, rgba(15, 22, 40, 0.98) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.96) 100%)'};
+  border: 1px solid
+    ${(props) =>
+      props.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
+  box-shadow: ${(props) =>
+    props.dark
+      ? '0 28px 52px rgba(0, 0, 0, 0.32)'
+      : '0 20px 42px rgba(31, 49, 88, 0.12)'};
+  backdrop-filter: blur(24px);
+  font-family: 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI',
+    sans-serif;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -80px auto auto -60px;
+    width: 180px;
+    height: 180px;
+    border-radius: 999px;
+    background: rgba(79, 135, 255, 0.18);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: auto -30px 10px auto;
+    width: 120px;
+    height: 120px;
+    border-radius: 999px;
+    background: ${(props) =>
+      props.dark
+        ? 'rgba(118, 91, 196, 0.16)'
+        : 'rgba(118, 91, 196, 0.1)'};
+    filter: blur(34px);
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 `;
 
 interface AppProps {
@@ -22,7 +77,7 @@ interface AppProps {
 
 export default function App({
   options,
-  lms = CanvasLMSConfig,
+  lms = BlackboardLMSConfig,
   MIN_LOAD_TIME = 350,
 }: AppProps): JSX.Element {
   const [delta, setDelta] = useState(0);
@@ -33,17 +88,18 @@ export default function App({
   const optionsStore = useOptionsStore(options, () =>
     setClickableState({ clickable: false, firstLoad: false })
   );
+  const liveOptions = optionsStore.state;
   const { start, end } = useMemo(() => {
     setClickableState({ clickable: false, firstLoad: false });
     return getPeriod(
-      optionsStore.state.period,
-      optionsStore.state.start_date,
-      optionsStore.state.start_hour,
-      optionsStore.state.start_minutes,
+      liveOptions.period,
+      liveOptions.start_date,
+      liveOptions.start_hour,
+      liveOptions.start_minutes,
       delta,
-      optionsStore.state.rolling_period
+      liveOptions.rolling_period
     );
-  }, [optionsStore.state, delta]);
+  }, [liveOptions, delta]);
 
   /*
     when prev/next buttons clicked
@@ -67,11 +123,12 @@ export default function App({
   }
   // options will always be available to children
   return (
-    <AppContainer id="tfc-wall-sina">
+    // Use the live store state here so theme changes repaint the shell right away
+    <AppContainer dark={liveOptions.dark_mode} id="tfc-wall-sina">
       <OptionsContext.Provider value={optionsStore}>
         <Header
           clickable={clickableState.clickable}
-          dark={options.dark_mode}
+          dark={liveOptions.dark_mode}
           onNextClick={onNextClick}
           onPrevClick={onPrevClick}
           weekEnd={end}

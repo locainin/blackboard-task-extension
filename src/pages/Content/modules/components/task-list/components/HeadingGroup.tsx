@@ -4,14 +4,16 @@ import { AnimatedProps, TransitionState } from '../../task-card/TaskCard';
 
 const HeadingContainer = styled.div.attrs((props: AnimatedProps) => ({
   style: {
-    height: props.opacity ? 24 * props.opacity : 0,
+    height: props.opacity ? 28 * props.opacity : 0,
     opacity: props.opacity ? props.opacity * props.opacity : 0,
   },
 }))<AnimatedProps>`
   width: 100%;
-  padding-bottom: 1px;
-  color: #6c757c;
-  font-size: small;
+  padding: 6px 0 2px;
+  color: #8d97ab;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   vertical-align: bottom;
 
   display: flex;

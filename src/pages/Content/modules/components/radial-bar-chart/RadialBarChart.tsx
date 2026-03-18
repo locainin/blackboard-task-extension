@@ -34,7 +34,8 @@ const ChartSVG = styled.svg`
 const CenteredChildren = styled.div`
   position: absolute;
   text-align: center;
-  width: 70px;
+  width: 110px;
+  pointer-events: none;
 `;
 
 interface Props {

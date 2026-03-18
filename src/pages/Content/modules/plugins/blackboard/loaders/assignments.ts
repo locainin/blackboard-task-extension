@@ -9,14 +9,23 @@ import {
 import baseURL from '../../../utils/baseURL';
 import { applyCustomOverrides } from '../../shared/customOverride';
 import { loadCustomTasks } from '../../shared/customTask';
-import loadGradescopeAssignments from '../../shared/loadGradescope';
 import {
   filterTimeBounds,
   processAssignmentList,
 } from '../../shared/useAssignments';
+import fetchBlackboardJson from './fetchJson';
 import loadBlackboardCourses, {
   getPaginatedRequestBlackboard,
 } from './courses';
+import { mapWithConcurrency } from './requestCache';
+import { logBlackboardDiagnostics } from '../utils/diagnostics';
+
+const BLACKBOARD_COURSE_REQUEST_CONCURRENCY = 3;
+const BLACKBOARD_DETAIL_REQUEST_CONCURRENCY = 6;
+const BLACKBOARD_COLUMNS_CACHE_MS = 2 * 60 * 1000;
+const BLACKBOARD_ATTEMPTS_CACHE_MS = 60 * 1000;
+const BLACKBOARD_LINK_CACHE_MS = 10 * 60 * 1000;
+const BLACKBOARD_ANNOUNCEMENTS_CACHE_MS = 2 * 60 * 1000;
 
 type BlackboardGradebookColumn = {
   id: string;
@@ -61,18 +70,40 @@ type BlackboardAnnouncement = {
 };
 
 async function getGradebookColumnsRequest(courseId: string) {
+  // Gradebook columns are the backbone for Blackboard task discovery
   const url = `${baseURL()}/learn/api/public/v2/courses/${courseId}/gradebook/columns`;
-  return getPaginatedRequestBlackboard<BlackboardGradebookColumn>(url, true);
+  return getPaginatedRequestBlackboard<BlackboardGradebookColumn>(
+    url,
+    'Blackboard gradebook columns',
+    true,
+    BLACKBOARD_COLUMNS_CACHE_MS
+  );
 }
 
 async function getAssignmentLink(courseId: string, contentId: string) {
+  // Gradebook columns point to content ids
+  // A second request is needed to recover the page link that users can open
   const url = `${baseURL()}/learn/api/public/v1/courses/${courseId}/contents/${contentId}?fields=links`;
-  return (await (await fetch(url)).json()) as BlackboardContentLink;
+  return await fetchBlackboardJson<BlackboardContentLink>(
+    url,
+    'Blackboard assignment link',
+    {
+      cacheKey: `bb-link:${courseId}:${contentId}`,
+      cacheTtlMs: BLACKBOARD_LINK_CACHE_MS,
+    }
+  );
 }
 
 async function getAttemptsRequest(courseId: string, column: string) {
+  // Attempts carry submission and grading state
+  // Blackboard keeps that separate from the column metadata
   const url = `${baseURL()}/learn/api/public/v2/courses/${courseId}/gradebook/columns/${column}/attempts`;
-  return await getPaginatedRequestBlackboard<BlackboardAttempt>(url, true);
+  return await getPaginatedRequestBlackboard<BlackboardAttempt>(
+    url,
+    'Blackboard attempts',
+    true,
+    BLACKBOARD_ATTEMPTS_CACHE_MS
+  );
 }
 
 async function getAnnouncementsRequest(
@@ -80,14 +111,22 @@ async function getAnnouncementsRequest(
   startDate: string,
   endDate: string
 ) {
+  // Announcements are optional in the sidebar
+  // Keep them on a separate path so the user filters can skip this work entirely
   const url = `${baseURL()}/learn/api/public/v1/courses/${courseId}/announcements?startDate=${startDate}&startDateCompare=between&startDateUntil=${endDate}`;
-  return await getPaginatedRequestBlackboard<BlackboardAnnouncement>(url, true);
+  return await getPaginatedRequestBlackboard<BlackboardAnnouncement>(
+    url,
+    'Blackboard announcements',
+    true,
+    BLACKBOARD_ANNOUNCEMENTS_CACHE_MS
+  );
 }
 
 function parseAnnouncement(
   courseId: string,
   announcement: BlackboardAnnouncement
 ): FinalAssignment {
+  // Normalize Blackboard announcements into the shared assignment model
   const res: FinalAssignment = {
     ...AssignmentDefaults,
     name: announcement.title,
@@ -106,6 +145,8 @@ function parseAssignment(
   courseId: string,
   col: BlackboardGradebookColumn
 ): FinalAssignment {
+  // Start with the gradebook view of the item
+  // Link and grading details are filled in later
   const assignment = {
     ...AssignmentDefaults,
     name: col.name,
@@ -129,6 +170,7 @@ function parseAssignment(
 }
 
 async function updateAssignmentDetails(assignment: FinalAssignment) {
+  // Fetch the clickable content link and grading state in parallel
   const [links, attempts] = await Promise.all([
     getAssignmentLink(assignment.course_id, assignment.id),
     getAttemptsRequest(assignment.course_id, assignment.plannable_id),
@@ -154,6 +196,7 @@ async function collectAnnouncements(
   endDate: Date,
   courses: Course[]
 ): Promise<FinalAssignment[]> {
+  // Blackboard announcement dates are easiest to query with date-only bounds
   const startStr = startDate.toISOString().split('T')[0];
   const endStr = endDate.toISOString().split('T')[0];
   const getAnnouncements = async (course: Course) => {
@@ -165,34 +208,104 @@ async function collectAnnouncements(
     return announcements.map((a) => parseAnnouncement(course.id, a));
   };
   const announcements: FinalAssignment[] = Array.prototype.concat(
-    ...(await Promise.all(courses.map((c) => getAnnouncements(c))))
+    ...(await mapWithConcurrency(
+      courses,
+      BLACKBOARD_COURSE_REQUEST_CONCURRENCY,
+      getAnnouncements
+    ))
   );
-  console.log(announcements);
+
+  logBlackboardDiagnostics('announcements collected', {
+    courses: courses.length,
+    announcements: announcements.length,
+    startDate: startStr,
+    endDate: endStr,
+  });
 
   return announcements;
+}
+
+function filterGradebookColumns(
+  columns: BlackboardGradebookColumn[],
+  options: Options
+) {
+  // Drop unsupported or unwanted Blackboard column types before doing any deeper work
+  return columns.filter((column) => {
+    if (column.grading.type !== 'Attempts') return false;
+    if (
+      options.blackboard_hide_courses_without_due_dates &&
+      !column.grading.due
+    )
+      return false;
+    if (
+      options.blackboard_hide_discussions &&
+      column.scoreProviderHandle === 'resource/x-bb-forumlink'
+    )
+      return false;
+    return true;
+  });
+}
+
+export function filterBlackboardAssignments(
+  assignments: FinalAssignment[],
+  options: Options
+) {
+  // Run the Blackboard-specific filters after all source lists are merged
+  return assignments.filter((assignment) => {
+    if (
+      options.blackboard_hide_announcements &&
+      assignment.type === AssignmentType.ANNOUNCEMENT
+    )
+      return false;
+    if (
+      options.blackboard_hide_discussions &&
+      assignment.type === AssignmentType.DISCUSSION
+    )
+      return false;
+    if (options.blackboard_show_only_graded && !assignment.graded) return false;
+    return true;
+  });
 }
 
 async function collectAssignments(
   startDate: Date,
   endDate: Date,
-  courses: Course[]
+  courses: Course[],
+  options: Options
 ): Promise<FinalAssignment[]> {
-  const cols: BlackboardGradebookColumn[][] = await Promise.all(
-    courses.map((c) => getGradebookColumnsRequest(c.id))
+  // Pull columns per course first, then enrich only the items that survive the time window
+  // This keeps link and attempt requests bounded to visible work
+  const cols: BlackboardGradebookColumn[][] = await mapWithConcurrency(
+    courses,
+    BLACKBOARD_COURSE_REQUEST_CONCURRENCY,
+    (course) => getGradebookColumnsRequest(course.id)
   );
-  const assignments = await Promise.all(
-    Array.prototype.concat(
-      ...cols.map((course_cols, i) =>
-        course_cols
-          .filter((c) => c.grading.type === 'Attempts')
-          .map((c) => parseAssignment(courses[i].id, c))
+  const assignments = Array.prototype.concat(
+    ...cols.map((courseCols, i) =>
+      filterGradebookColumns(courseCols, options).map((column) =>
+        parseAssignment(courses[i].id, column)
       )
     )
   );
-  const filtered = filterTimeBounds(startDate, endDate, assignments);
-  const updated = await Promise.all(
-    filtered.map((a) => updateAssignmentDetails(a))
+  const columnCount = cols.reduce(
+    (total, courseCols) => total + courseCols.length,
+    0
   );
+  const filtered = filterTimeBounds(startDate, endDate, assignments);
+  const updated = await mapWithConcurrency(
+    filtered,
+    BLACKBOARD_DETAIL_REQUEST_CONCURRENCY,
+    (assignment) => updateAssignmentDetails(assignment)
+  );
+  logBlackboardDiagnostics('assignments collected', {
+    courses: courses.length,
+    gradebookColumns: columnCount,
+    parsedAssignments: assignments.length,
+    inWindowAssignments: filtered.length,
+    detailedAssignments: updated.length,
+    hideDiscussions: options.blackboard_hide_discussions,
+    hideEmptyCourses: options.blackboard_hide_courses_without_due_dates,
+  });
   return updated;
 }
 // calendars => gradebook columns => (filter) => gradebook column attempts
@@ -209,16 +322,32 @@ export default async function loadBlackboardAssignments(
   en.setDate(en.getDate() + 1);
 
   const courses = await loadBlackboardCourses();
+  const includeAnnouncements =
+    !options.blackboard_hide_announcements &&
+    !options.blackboard_show_only_graded;
+
+  logBlackboardDiagnostics('assignment load start', {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    includeAnnouncements,
+    courseCount: courses.length,
+    gradedOnly: options.blackboard_show_only_graded,
+    hideAnnouncements: options.blackboard_hide_announcements,
+    hideDiscussions: options.blackboard_hide_discussions,
+  });
 
   const assignmentSources = await Promise.all([
-    collectAnnouncements(st, en, courses),
-    collectAssignments(st, en, courses),
+    // Keep each Blackboard source separate so diagnostics can show where the final list came from
+    includeAnnouncements ? collectAnnouncements(st, en, courses) : [],
+    collectAssignments(st, en, courses, options),
     loadCustomTasks('blackboard_custom'),
-    loadGradescopeAssignments(st, en, options),
   ]);
-  const assignments = Array.prototype.concat(...assignmentSources);
+  const assignments = filterBlackboardAssignments(
+    Array.prototype.concat(...assignmentSources),
+    options
+  );
   const marked = await applyCustomOverrides(assignments, 'blackboard_custom');
-  return processAssignmentList(
+  const processed = processAssignmentList(
     marked,
     startDate,
     endDate,
@@ -226,4 +355,10 @@ export default async function loadBlackboardAssignments(
     BlackboardLMSConfig.onCoursePage,
     BlackboardLMSConfig.dashCourses(courses)
   );
+  logBlackboardDiagnostics('assignment load complete', {
+    sourceGroups: assignmentSources.map((group) => group.length),
+    mergedAssignments: assignments.length,
+    processedAssignments: processed.length,
+  });
+  return processed;
 }

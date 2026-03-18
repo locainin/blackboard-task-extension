@@ -7,20 +7,25 @@ type StyledButtonProps = {
 };
 
 const StyledButton = styled.button<StyledButtonProps>`
-  background-color: ${(props) => props.color};
+  background: ${(props) =>
+    props.disabled
+      ? props.color
+      : `linear-gradient(135deg, ${props.color}, #73a5ff)`};
   outline: none;
   opacity: 1;
   &:hover {
     opacity: ${(props) => (props.disabled ? '1' : '0.7')};
   }
 
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 650;
   color: white;
   border: none;
-  padding: 10px;
-  border-radius: 4px;
+  padding: 12px;
+  border-radius: 16px;
   margin-top: 10px;
+  box-shadow: ${(props) =>
+    props.disabled ? 'none' : '0 18px 32px rgba(79, 135, 255, 0.22)'};
 
   transition: background-color 0.5s;
   cursor: ${(props) => (props.disabled ? 'default' : 'pointer')};

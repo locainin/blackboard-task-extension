@@ -7,7 +7,6 @@ import LockedIcon from './locked';
 import CheckIcon from './check';
 import NoteIcon from './note';
 import NeedsGradingIcon from './grade';
-import GradescopeIcon from './gradescope';
 
 export {
   AnnouncementIcon,
@@ -19,5 +18,4 @@ export {
   LockedIcon,
   CheckIcon,
   NoteIcon,
-  GradescopeIcon,
 };

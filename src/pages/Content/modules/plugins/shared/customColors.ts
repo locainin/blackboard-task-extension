@@ -1,4 +1,10 @@
 import { DEFAULT_DASHBOARD_COLORS } from '../../constants';
+import {
+  safeAddStorageOnChangedListener,
+  safeRemoveStorageOnChangedListener,
+  safeStorageSyncGet,
+  safeStorageSyncSet,
+} from '../../utils/extensionContext';
 
 export type StoredCustomColors = Record<string, string>;
 
@@ -21,7 +27,7 @@ export async function loadCustomColors(
   platformKey: string
 ): Promise<StoredCustomColors> {
   const key = colorsKey(platformKey);
-  const colors = await chrome.storage.sync.get(key);
+  const colors = await safeStorageSyncGet<Record<string, unknown>>(key, {});
   if (!(key in colors)) return {};
   return colors[key] as StoredCustomColors;
 }
@@ -32,7 +38,8 @@ export async function setCustomColors(
 ) {
   const colors = await loadCustomColors(platformKey);
   const key = colorsKey(platformKey);
-  chrome.storage.sync.set({
+  // Ignore writes from stale content scripts after an extension reload
+  await safeStorageSyncSet({
     [key]: {
       ...colors,
       ...customColors,
@@ -78,6 +85,6 @@ export function watchCustomColors(
       );
     }
   };
-  chrome.storage.onChanged.addListener(listener);
+  safeAddStorageOnChangedListener(listener);
   return listener;
 }

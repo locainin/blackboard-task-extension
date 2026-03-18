@@ -5,7 +5,6 @@ import useOptions from '../../hooks/useOptions';
 import { CheckIcon } from '../../icons';
 import { AssignmentType, FinalAssignment } from '../../types';
 import { DarkProps } from '../../types/props';
-import isDemo from '../../utils/isDemo';
 import CourseDropdown from '../course-dropdown';
 import Button from './components/Button';
 import DatePick from './components/DatePick';
@@ -32,13 +31,21 @@ const FormContainer = styled.div<FormContainerProps>`
 `;
 
 const Form = styled.div<DarkProps>`
-  background-color: ${(props) =>
-    props.dark ? 'var(--tfc-dark-mode-bg-primary)' : 'white'};
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  background: ${(props) =>
+    props.dark
+      ? 'linear-gradient(180deg, rgba(18, 24, 40, 0.98) 0%, rgba(15, 22, 38, 0.98) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 254, 0.98) 100%)'};
+  box-shadow: ${(props) =>
+    props.dark
+      ? '0 28px 54px rgba(0, 0, 0, 0.34)'
+      : '0 22px 42px rgba(31, 49, 88, 0.14)'};
+  border: 1px solid
+    ${(props) =>
+      props.dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'};
+  border-radius: 24px;
   display: flex;
   width: 100%;
-  padding: 10px;
+  padding: 18px;
   flex-direction: column;
 `;
 
@@ -146,7 +153,7 @@ export default function TaskForm({
         grading,
         link.trim()
       );
-      if (!res && !isDemo()) {
+      if (!res) {
         setErrorMessage(
           'An error occurred. Make sure you have cookies enabled.'
         );

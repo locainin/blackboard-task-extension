@@ -1,5 +1,9 @@
 import { AssignmentStatus, FinalAssignment } from '../../types/assignment';
 import { deleteCustomTask } from './customTask';
+import {
+  safeStorageLocalGet,
+  safeStorageLocalSet,
+} from '../../utils/extensionContext';
 
 // local storage backed assignment overrides
 export interface CustomOverrides {
@@ -21,16 +25,19 @@ export async function setCustomOverride(
 ) {
   const key = `${platformKey}_overrides`;
   const overrideId = `${id}_${course_id}`;
-  const overrides = (await chrome.storage.local.get(key))[key] || {};
+  const overrides = ((await safeStorageLocalGet<Record<string, unknown>>(
+    key,
+    {}
+  ))[key] || {}) as CustomOverrides;
   const newOverrides = {
     ...overrides,
     [overrideId]: status,
   };
   if (status === AssignmentStatus.DELETED) {
     delete newOverrides[overrideId];
-    deleteCustomTask('gradescope_custom', id);
+    deleteCustomTask(platformKey, id);
   }
-  chrome.storage.local.set({ [key]: newOverrides });
+  await safeStorageLocalSet({ [key]: newOverrides });
 
   return newOverrides;
 }
@@ -39,9 +46,9 @@ export async function getCustomOverrides(
   platformKey: string
 ): Promise<CustomOverrides> {
   const key = `${platformKey}_overrides`;
-  const res = await chrome.storage.local.get(key);
+  const res = await safeStorageLocalGet<Record<string, unknown>>(key, {});
   if (!(key in res)) return {};
-  return res[key] || {};
+  return (res[key] || {}) as CustomOverrides;
 }
 
 export async function applyCustomOverrides(
