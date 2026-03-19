@@ -37,7 +37,9 @@ export function NeedsGradingIconComponent({
 }: IconProps): JSX.Element {
   return (
     <svg
-      className="tfc-todo-tab"
+      // The grading tab needs its own class name so the strip can target
+      // hover and selected styles without colliding with the unfinished tab
+      className="tfc-grade-tab"
       fill={color}
       height={size}
       style={{

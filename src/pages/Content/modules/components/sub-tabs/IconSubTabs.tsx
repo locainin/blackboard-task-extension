@@ -88,7 +88,6 @@ const SubtitleTab = styled.div<SubtitleTabProps & DarkProps>`
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     transform 0.18s ease;
-
   &:hover {
     background: ${(p) =>
       p.active
@@ -136,26 +135,46 @@ export default function IconSubTabs({
   taskListState,
   notifs = 0,
 }: SubTabsProps): JSX.Element {
+  // Hover state is tracked here so the icon color and icon variant
+  // stay in sync instead of relying on SVG CSS overrides alone
+  const [hoveredTab, setHoveredTab] = React.useState<TaskTypeTab | null>(null);
+
   function setTaskListStateFunc(state: TaskTypeTab) {
     if (!setTaskListState)
       return () => {
         return;
       };
+
+    // Keep the click handler creation in one place
+    // This avoids repeating the guard for hidden or read-only states
     return () => setTaskListState(state);
   }
 
+  // Hover should preview the same accent used by the selected tab
+  // This keeps all four icons on the same color path
+  function getTabColor(tab: TaskTypeTab): string {
+    if (taskListState === tab || hoveredTab === tab) return activeColor || ICON_FILL;
+    return '#6c757c';
+  }
+
+  // The filled icon variant makes hover read the same way as the selected state
+  // That keeps the third tab from falling back to a weaker outline treatment
+  function getTabVariant(tab: TaskTypeTab): 'solid' | 'outline' {
+    return taskListState === tab || hoveredTab === tab ? 'solid' : 'outline';
+  }
+
+  // Tabs are assembled from the enabled views so the strip shape stays stable
+  // for student and grading layouts without splitting the render path
   const tabs = [
     showAnnouncements
       ? {
           key: 'Announcements' as TaskTypeTab,
           render: () => (
             <AnnouncementIconComponent
-              color={taskListState === 'Announcements' ? activeColor : '#6c757c'}
+              color={getTabColor('Announcements')}
               flat
               notifs={notifs}
-              variant={
-                taskListState === 'Announcements' ? 'solid' : 'outline'
-              }
+              variant={getTabVariant('Announcements')}
             />
           ),
           className: 'tfc-announcement-tab',
@@ -166,9 +185,9 @@ export default function IconSubTabs({
           key: 'Unfinished' as TaskTypeTab,
           render: () => (
             <AssignmentIconComponent
-              color={taskListState === 'Unfinished' ? activeColor : '#6c757c'}
+              color={getTabColor('Unfinished')}
               flat
-              variant={taskListState === 'Unfinished' ? 'solid' : 'outline'}
+              variant={getTabVariant('Unfinished')}
             />
           ),
           className: 'tfc-todo-tab',
@@ -179,9 +198,9 @@ export default function IconSubTabs({
           key: 'NeedsGrading' as TaskTypeTab,
           render: () => (
             <NeedsGradingIconComponent
-              color={taskListState === 'NeedsGrading' ? activeColor : '#6c757c'}
+              color={getTabColor('NeedsGrading')}
               flat
-              variant={taskListState === 'NeedsGrading' ? 'solid' : 'outline'}
+              variant={getTabVariant('NeedsGrading')}
             />
           ),
           className: 'tfc-grade-tab',
@@ -192,8 +211,8 @@ export default function IconSubTabs({
           key: 'Completed' as TaskTypeTab,
           render: () => (
             <CompletedIconComponent
-              color={taskListState === 'Completed' ? activeColor : '#6c757c'}
-              variant={taskListState === 'Completed' ? 'solid' : 'outline'}
+              color={getTabColor('Completed')}
+              variant={getTabVariant('Completed')}
             />
           ),
           className: 'tfc-completed-tab',
@@ -205,11 +224,6 @@ export default function IconSubTabs({
     className: string;
   }[];
 
-  const activeIndex = Math.max(
-    0,
-    tabs.findIndex((tab) => tab.key === taskListState)
-  );
-
   return (
     <SubtitleDiv dark={dark}>
       {tabs.map((tab) => (
@@ -219,6 +233,10 @@ export default function IconSubTabs({
           dark={dark}
           iconClassname={tab.className}
           key={tab.key}
+          // Hover is lifted into React state so every icon uses the same
+          // accent logic instead of depending on per-SVG fill behavior
+          onMouseEnter={() => setHoveredTab(tab.key)}
+          onMouseLeave={() => setHoveredTab((current) => (current === tab.key ? null : current))}
           onClick={setTaskListStateFunc(tab.key)}
           opacity={taskListState === tab.key ? 1 : dark ? 0.82 : 0.6}
         >
