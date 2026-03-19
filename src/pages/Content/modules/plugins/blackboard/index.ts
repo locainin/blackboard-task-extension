@@ -20,7 +20,7 @@ export const BlackboardLMSConfig: LMSConfig = {
   storageKey: 'blackboard_custom',
   useAssignments: makeUseAssignments(loadBlackboardAssignments),
   useCourses: makeUseCourses(loadBlackboardCourses),
-  createAssignment: makeCreateCustomTask('blackboard_custom'), // todo
+  createAssignment: makeCreateCustomTask('blackboard_custom'),
   markAssignment: makeMarkAssignment('blackboard_custom'),
   dashCourses: dashCoursesBlackboard,
   onCoursePage: onCoursePageBlackboard,

@@ -37,14 +37,19 @@ const CourseTitle = styled.div<CourseTitleProps & DarkProps>`
 interface DropdownProps {
   inlineMenu?: boolean;
   maxHeight?: number;
+  portalMenu?: boolean;
   zIndex?: number;
 }
 
 const Dropdown = styled.div<DropdownProps & DarkProps>`
   position: ${(props) => (props.inlineMenu ? 'relative' : 'absolute')};
-  top: ${(props) => (props.inlineMenu ? '0' : 'calc(100% + 10px)')};
   left: 0;
-  z-index: ${(props) => props.zIndex || 240};
+  // Keep the menu surface above the page but visually related to the trigger
+  // The menu should feel like one clean popover, not a separate scrollbox
+  scrollbar-width: none;
+  top: ${(props) => (props.inlineMenu ? '0' : 'calc(100% + 10px)')};
+  z-index: ${(props) =>
+    props.portalMenu ? 2147483300 : props.zIndex || 240};
   max-height: ${(props) =>
     typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : '320px'};
   display: flex;
@@ -52,8 +57,10 @@ const Dropdown = styled.div<DropdownProps & DarkProps>`
   margin-top: ${(props) => (props.inlineMenu ? '8px' : '0')};
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 8px;
+  padding: 10px;
   box-sizing: border-box;
+  overscroll-behavior: contain;
+  -ms-overflow-style: none;
   box-shadow: ${(props) =>
     props.dark
       ? '0 24px 48px rgba(0, 0, 0, 0.34)'
@@ -67,7 +74,50 @@ const Dropdown = styled.div<DropdownProps & DarkProps>`
       props.dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(15, 23, 42, 0.08)'};
   border-radius: 20px;
   width: 100%;
-  overscroll-behavior: contain;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  // Use fades instead of visible scrollbars
+  // The picker reads more like a popover and less like a mini web page
+  &::before,
+  &::after {
+    content: '';
+    position: sticky;
+    left: 0;
+    right: 0;
+    display: block;
+    height: 16px;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  &::before {
+    top: 0;
+    margin-bottom: -16px;
+    background: linear-gradient(
+      180deg,
+      ${(props) =>
+          props.dark ? 'rgba(23, 31, 49, 0.98)' : 'rgba(255, 255, 255, 0.98)'}
+        0%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  &::after {
+    bottom: 0;
+    margin-top: -16px;
+    background: linear-gradient(
+      0deg,
+      ${(props) =>
+          props.dark ? 'rgba(19, 27, 44, 0.98)' : 'rgba(255, 255, 255, 0.98)'}
+        0%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
 `;
 
 const CourseDropdownContainer = styled.div<{ menuVisible: boolean }>`
@@ -136,6 +186,8 @@ export default function CourseDropdown({
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const [hovering, setHovering] = useState(false);
   const safeChoices = useMemo(
+    // Blackboard can briefly hand back empty items during page switches
+    // Filter once here so the render path stays simple
     () => choices.filter((choice): choice is DropdownChoice => Boolean(choice)),
     [choices]
   );
@@ -144,6 +196,8 @@ export default function CourseDropdown({
     if (!menuVisible) return;
 
     function handlePointerDown(event: MouseEvent) {
+      // Treat the trigger and the floated menu as one control
+      // Clicks outside either node should collapse the picker
       const targetNode = event.target as Node;
       const inTrigger = containerRef.current?.contains(targetNode);
       const inMenu = menuRef.current?.contains(targetNode);
@@ -260,6 +314,9 @@ export default function CourseDropdown({
       dark={darkMode}
       inlineMenu={inlineMenu}
       maxHeight={menuPosition?.maxHeight || maxHeight}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      portalMenu={!inlineMenu && !!menuPosition}
       ref={menuRef}
       style={
         inlineMenu || !menuPosition
@@ -273,7 +330,9 @@ export default function CourseDropdown({
               transformOrigin: menuPosition.openUpward
                 ? 'bottom center'
                 : 'top center',
-              zIndex: zIndex || 10000,
+              // Portal menus need to sit above modal overlays
+              // Local zIndex hints like 25 are still useful for inline menus, but too low here
+              zIndex: 2147483300,
             }
       }
       zIndex={zIndex}
@@ -285,10 +344,11 @@ export default function CourseDropdown({
               ? 'var(--tfc-dark-mode-text-primary)'
               : 'var(--ic-brand-font-color-dark)'
           }
+          dark={darkMode}
           id=""
-          last={false}
           menuVisible={menuVisible}
           name={defaultOption || 'All Courses'}
+          selected={!selectedId}
           setCourse={setChoice}
           setMenuVisible={setMenuVisible}
         />
@@ -296,10 +356,11 @@ export default function CourseDropdown({
       {onCoursePage && selectedId ? (
         <CourseButton
           color={selectedChoice.color}
+          dark={darkMode}
           id={selectedId}
-          last
           menuVisible={menuVisible}
           name={selectedChoice.name}
+          selected
           setCourse={setChoice}
           setMenuVisible={setMenuVisible}
         />
@@ -307,11 +368,12 @@ export default function CourseDropdown({
         safeChoices.map((choice, i) => (
           <CourseButton
             color={choice.color}
+            dark={darkMode}
             id={choice.id}
             key={`course-btn-${choice.id}`}
-            last={i === safeChoices.length - 1}
             menuVisible={menuVisible}
             name={choice.name}
+            selected={choice.id === selectedId}
             setCourse={setChoice}
             setMenuVisible={setMenuVisible}
           />
@@ -323,7 +385,12 @@ export default function CourseDropdown({
   );
 
   return (
-    <CourseDropdownContainer menuVisible={menuVisible} ref={containerRef}>
+    <CourseDropdownContainer
+      menuVisible={menuVisible}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      ref={containerRef}
+    >
       {instructureStyle ? (
         <TextInput
           color={defaultColor}

@@ -14,7 +14,6 @@ const Template: ComponentStory<typeof CourseButton> = ({
   name,
   color,
   id,
-  last,
   menuVisible,
 }) => {
   function func() {
@@ -25,7 +24,6 @@ const Template: ComponentStory<typeof CourseButton> = ({
       <CourseButton
         color={color}
         id={id}
-        last={last}
         menuVisible={menuVisible}
         name={name}
         setCourse={func}
@@ -39,7 +37,6 @@ const storyDefaults: Partial<CourseButtonProps> = {
   name: 'Course Name',
   color: 'var(--storybook-theme)',
   id: '0',
-  last: false,
   menuVisible: true,
 };
 
@@ -51,5 +48,4 @@ NotLast.args = {
 export const Last = Template.bind({});
 Last.args = {
   ...storyDefaults,
-  last: true,
 };
