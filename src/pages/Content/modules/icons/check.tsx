@@ -8,7 +8,11 @@ interface CheckIconProps {
   checkStyle: 'Check' | 'Revert' | 'X';
 }
 
-const CheckIconWrapper = styled.div<DarkProps>`
+interface CheckWrapperProps extends DarkProps {
+  destructive?: boolean;
+}
+
+const CheckIconWrapper = styled.div<CheckWrapperProps>`
   width: 16px;
   height: 16px;
   border-radius: 100%;
@@ -18,8 +22,14 @@ const CheckIconWrapper = styled.div<DarkProps>`
   &:hover {
     svg {
       cursor: pointer;
+      // Delete actions should read as destructive on hover
+      // The other icons keep the neutral hover so they still feel passive
       fill: ${(props) =>
-        props.dark ? '#d4d4d8' : 'var(--ic-brand-font-color-dark)'};
+        props.destructive
+          ? '#ff6b6b'
+          : props.dark
+          ? '#d4d4d8'
+          : 'var(--ic-brand-font-color-dark)'};
     }
   }
 `;
@@ -93,6 +103,7 @@ function CheckIcon({
   return (
     <CheckIconWrapper
       dark={dark}
+      destructive={checkStyle === 'X'}
       onClick={onClick}
       title={checkStyleTooltips[checkStyle]}
     >
