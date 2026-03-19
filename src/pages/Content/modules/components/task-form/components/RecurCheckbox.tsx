@@ -11,105 +11,182 @@ type CheckProps = {
 
 const Checkbox = styled.div<CheckProps>`
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 5px;
-  padding: 5px;
+  width: 44px;
+  min-width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  padding: 3px;
   background-color: ${(props) =>
     props.checked
       ? props.color
       : props.dark
-      ? 'var(--tfc-dark-mode-bg-secondary)'
-      : '#dddddd'};
-  transition: all 0.15s;
+      ? 'rgba(95, 108, 137, 0.75)'
+      : '#d9dfeb'};
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  box-shadow: ${(props) =>
+    props.checked
+      ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.12)'
+      : props.dark
+      ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.04)'
+      : 'inset 0 1px 0 rgba(255, 255, 255, 0.6)'};
 
   &:hover {
     cursor: pointer;
-    opacity: 60%;
+    opacity: 1;
+    transform: translateY(-1px);
   }
+`;
+
+const CheckboxKnob = styled.div<CheckProps>`
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateX(${(props) => (props.checked ? '16px' : '0')});
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 `;
 
 const Row = styled.div`
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 `;
 
-const WarningText = styled.div`
-  margin-top: 5px;
+const Copy = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`;
+
+const Title = styled.div<{ dark?: boolean }>`
+  color: ${(props) =>
+    props.dark ? 'rgba(235, 241, 251, 0.96)' : '#24324a'};
+  font-size: 16px;
+  font-weight: 730;
+`;
+
+const Subtitle = styled.div<{ dark?: boolean }>`
+  color: ${(props) =>
+    props.dark ? 'rgba(165, 178, 201, 0.8)' : '#73819a'};
   font-size: 12px;
-  opacity: 0.7;
+  line-height: 1.35;
+  opacity: 1;
+`;
+
+const WarningText = styled.div<{ dark?: boolean }>`
+  margin-top: 6px;
+  color: ${(props) =>
+    props.dark ? 'rgba(165, 178, 201, 0.78)' : '#73819a'};
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 1;
+`;
+
+const RecurrenceRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const RecurrenceLabel = styled.div<{ dark?: boolean }>`
+  color: ${(props) =>
+    props.dark ? 'rgba(181, 193, 214, 0.82)' : '#6c7a92'};
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.25;
+`;
+
+const ToggleRow = styled.div<{ dark?: boolean }>`
+  // This row needs its own surface so the copy and switch do not dissolve
+  // into the rest of the modal on dark mode
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: ${(props) =>
+    props.dark
+      ? 'linear-gradient(180deg, rgba(48, 58, 85, 0.72) 0%, rgba(37, 46, 69, 0.76) 100%)'
+      : 'rgba(15, 23, 42, 0.03)'};
+  box-shadow: ${(props) =>
+    props.dark
+      ? 'inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 8px 18px rgba(0, 0, 0, 0.1)'
+      : 'none'};
 `;
 
 type Props = {
   color: string;
   dark?: boolean;
+  enabled: boolean;
   recurrences: number;
+  setEnabled: (value: boolean) => void;
   setRecurrences: (value: number) => void;
 };
 
 export default function RecurCheckbox({
   color,
   recurrences,
+  enabled,
+  setEnabled,
   setRecurrences,
   dark = false,
 }: Props): JSX.Element {
   function toggleCheck() {
-    if (recurrences > 1) setRecurrences(1);
-    else setRecurrences(2);
+    setEnabled(!enabled);
   }
   function chooseRecurrences(id: string) {
     const p = parseInt(id);
     if (p) setRecurrences(p);
   }
-  const repeatWeeklyText = 'Repeat Weekly';
-  const numberOfWeeksText = 'Repeat for ';
+  const repeatWeeklyText = 'Repeat Every Week';
+  const repeatWeeklySubtext = 'Create one reminder each week for the chosen span';
+  const numberOfWeeksText = 'Repeat for';
   const repeatWarningText =
     'Note that repeating tasks can only be deleted individually.';
   const RECUR_MAX = 10;
   const recurOptions: DropdownChoice[] = [];
-  for (let i = 2; i <= RECUR_MAX; i++) {
+  // Build the week list locally so this control stays cheap
+  // No Blackboard data is needed for the repeat span
+  for (let i = 1; i <= RECUR_MAX; i++) {
     recurOptions.push({
       id: i + '',
-      name: i + ' Weeks',
+      name: i === 1 ? '1 Week' : i + ' Weeks',
       color: dark ? 'var(--tfc-dark-mode-text-primary)' : '#2d3b45',
     });
   }
 
   return (
     <div>
-      <Row>
-        <span style={{ fontWeight: 700 }}>{repeatWeeklyText}</span>
+      <ToggleRow dark={dark}>
+        <Copy>
+          <Title dark={dark}>{repeatWeeklyText}</Title>
+          <Subtitle dark={dark}>{repeatWeeklySubtext}</Subtitle>
+        </Copy>
         <Checkbox
-          checked={recurrences > 1}
+          checked={enabled}
           color={color}
           dark={dark}
           onClick={toggleCheck}
         >
-          {recurrences > 1 && (
-            <svg
-              height="18"
-              style={{
-                fill: 'white',
-                filter: 'drop-shadow( 2px 2px 2px rgba(0, 0, 0, .4))',
-              }}
-              viewBox="0 0 24 24"
-              width="18"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z" />
-            </svg>
-          )}
+          <CheckboxKnob checked={enabled} color={color} />
         </Checkbox>
-      </Row>
-      {recurrences > 1 && (
-        <>
-          <div style={{ height: '10px' }} />
+      </ToggleRow>
+      {enabled && (
+        <RecurrenceRow>
           <Row>
-            {numberOfWeeksText}
+            <RecurrenceLabel dark={dark}>{numberOfWeeksText}</RecurrenceLabel>
             <CourseDropdown
               choices={recurOptions}
               defaultColor={color}
@@ -122,8 +199,8 @@ export default function RecurCheckbox({
               zIndex={25}
             />
           </Row>
-          <WarningText>{repeatWarningText}</WarningText>
-        </>
+          <WarningText dark={dark}>{repeatWarningText}</WarningText>
+        </RecurrenceRow>
       )}
     </div>
   );
