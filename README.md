@@ -18,6 +18,12 @@ All credit for the original design, functionality, and ongoing development belon
 
 ## Why This Fork Exists
 
+It started after hitting a Blackboard API failure:
+
+```text
+Assignments failed to load: SyntaxError: Unexpected token '<', "<?xml vers"... is not valid JSON
+```
+
 This fork exists somewhat backwards compared to a typical open-source workflow.
 
 I originally made this modification for personal use, then kept extending it to better fit Blackboard-specific behavior, layout, and workflow needs that were outside the original project scope.
