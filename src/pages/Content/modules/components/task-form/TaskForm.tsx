@@ -15,16 +15,31 @@ import TimePick from './components/TimePick';
 import useCourseStore from '../../hooks/useCourseStore';
 import { LMSContext } from '../../contexts/contexts';
 
-const FormContainer = styled.div`
+type FrameRect = {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
+
+const FormContainer = styled.div<{ $frameRect: FrameRect }>`
   position: fixed;
   z-index: 2147483000;
+  top: ${(props) => `${props.$frameRect.top}px`};
+  left: ${(props) => `${props.$frameRect.left}px`};
+  width: ${(props) => `${props.$frameRect.width}px`};
+  height: ${(props) => `${props.$frameRect.height}px`};
   padding: 14px;
   box-sizing: border-box;
   justify-content: center;
   align-items: center;
   display: flex;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(7, 11, 20, 0.3) 0%, rgba(7, 11, 20, 0.42) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(7, 11, 20, 0.3) 0%,
+    rgba(7, 11, 20, 0.42) 100%
+  );
   backdrop-filter: blur(10px);
 `;
 
@@ -122,8 +137,7 @@ const HeaderCopy = styled.div`
 `;
 
 const FormTitle = styled.div<DarkProps>`
-  color: ${(props) =>
-    props.dark ? 'rgba(240, 245, 255, 0.96)' : '#172033'};
+  color: ${(props) => (props.dark ? 'rgba(240, 245, 255, 0.96)' : '#172033')};
   font-size: 20px;
   font-weight: 780;
   letter-spacing: -0.03em;
@@ -131,8 +145,7 @@ const FormTitle = styled.div<DarkProps>`
 `;
 
 const FormIntro = styled.div<DarkProps>`
-  color: ${(props) =>
-    props.dark ? 'rgba(168, 183, 208, 0.74)' : '#6f7d95'};
+  color: ${(props) => (props.dark ? 'rgba(168, 183, 208, 0.74)' : '#6f7d95')};
   font-size: 12px;
   font-weight: 560;
   line-height: 1.35;
@@ -153,8 +166,7 @@ const FormItem = styled.div<DarkProps>`
 `;
 
 const FieldLabel = styled.div<DarkProps>`
-  color: ${(props) =>
-    props.dark ? 'rgba(234, 241, 251, 0.96)' : '#24324a'};
+  color: ${(props) => (props.dark ? 'rgba(234, 241, 251, 0.96)' : '#24324a')};
   font-size: 13px;
   font-weight: 760;
   letter-spacing: -0.01em;
@@ -173,13 +185,6 @@ type Props = {
   onSubmit?: (assignment: FinalAssignment | FinalAssignment[]) => void;
   selectedCourse?: string;
   visible?: boolean;
-};
-
-type FrameRect = {
-  height: number;
-  left: number;
-  top: number;
-  width: number;
 };
 
 export default function TaskForm({
@@ -201,6 +206,9 @@ export default function TaskForm({
   // This lets the form offer "1 Week" without forcing repeat mode on
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [recurrences, setRecurrences] = useState(2);
+  // Resume from the first week that did not save yet
+  // This keeps a retry from recreating the weeks that already succeeded
+  const [retryStartIndex, setRetryStartIndex] = useState(0);
   const [frameRect, setFrameRect] = useState<FrameRect | null>(null);
   const { state: options } = useOptions();
 
@@ -217,12 +225,19 @@ export default function TaskForm({
 
   const titleLabel = 'Title';
   const dateLabel = 'Due Date';
+  const timeLabel = 'Time';
   const linkLabel = 'URL (optional)';
   const courseLabel = 'Course (optional)';
+  const formTitleLabel = 'New Task';
+  const formIntroLabel = 'Add a reminder beside Blackboard work';
   const [errorMessage, setErrorMessage] = useState('');
 
   function setSelected(date?: Date) {
     setSelectedDate(date);
+  }
+
+  function stopFormClick(event: React.MouseEvent<HTMLDivElement>) {
+    event.stopPropagation();
   }
 
   const [selectedCourseId, setSelectedCourseId] = useState(
@@ -237,7 +252,7 @@ export default function TaskForm({
 
     // The repeat toggle controls whether extra weekly copies are created
     // The week count stays separate so "1 Week" can exist without forcing the toggle on
-    for (let i = 0; i < totalAssignments; i++) {
+    for (let i = retryStartIndex; i < totalAssignments; i++) {
       const assignment: FinalAssignment = {
         ...AssignmentDefaults,
       } as FinalAssignment;
@@ -257,7 +272,9 @@ export default function TaskForm({
           ? AssignmentDefaults.course_id
           : selectedCourseId;
       assignment.type = AssignmentType.NOTE;
-      assignment.id = '' + Math.floor(1000000 * Math.random());
+      // Use the same id strategy as the shared custom-task path
+      // This avoids weak placeholder ids while the real Blackboard id is loading
+      assignment.id = crypto.randomUUID();
       assignment.needs_grading_count = grading ? 1 : 0;
       assignment.total_submissions = grading ? 1 : 0;
       assignment.html_url = link.trim();
@@ -270,12 +287,18 @@ export default function TaskForm({
         link.trim()
       );
       if (!res) {
+        // Move the retry cursor to the first week that still needs to save
+        // This keeps a retry from duplicating the weeks that already finished
+        setRetryStartIndex(i);
         setErrorMessage(
-          'An error occurred. Make sure you have cookies enabled.'
+          recurringAssignments.length
+            ? 'Some weekly tasks were saved before the request failed. Retry will save only the remaining weeks.'
+            : 'An error occurred. Make sure you have cookies enabled.'
         );
         // Keep any tasks that were already created in this batch
         // The form stays open so the failed save can be seen and retried
-        if (recurringAssignments.length && onSubmit) onSubmit(recurringAssignments);
+        if (recurringAssignments.length && onSubmit)
+          onSubmit(recurringAssignments);
         return;
       }
       assignment.id = res.id ? res.id.toString() : assignment.id.toString();
@@ -285,11 +308,38 @@ export default function TaskForm({
       recurringAssignments.push(assignment);
     }
 
+    // Reset the retry cursor once the whole batch is finished
+    // The next submit should start from the first week again
+    setRetryStartIndex(0);
     if (onSubmit) onSubmit(recurringAssignments);
     close();
   }
 
   const darkMode = !!options?.dark_mode;
+  useEffect(() => {
+    if (!visible) {
+      // Clear partial-submit state when the sheet closes
+      // A fresh open should always start from the first week
+      setRetryStartIndex(0);
+      setErrorMessage('');
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    // Any field edit changes what the next batch should look like
+    // Drop the retry cursor so a later save matches the current form values
+    setRetryStartIndex(0);
+  }, [
+    grading,
+    link,
+    recurrences,
+    repeatEnabled,
+    selectedCourseId,
+    selectedDate,
+    selectedTime,
+    title,
+  ]);
+
   useEffect(() => {
     if (!visible) return;
 
@@ -338,28 +388,16 @@ export default function TaskForm({
     };
   }, [visible]);
 
-  if (!visible || !frameRect) return <></>;
+  if (!visible || !frameRect) return null;
 
   return ReactDOM.createPortal(
-    <FormContainer
-      onClick={close}
-      style={{
-        // Follow the sidebar frame instead of the page body
-        // This keeps the sheet centered inside the Blackboard panel
-        height: `${frameRect.height}px`,
-        left: `${frameRect.left}px`,
-        top: `${frameRect.top}px`,
-        width: `${frameRect.width}px`,
-      }}
-    >
+    <FormContainer $frameRect={frameRect} onClick={close}>
       {/* Stop backdrop clicks from leaking into the form body */}
-      <Form dark={darkMode} onClick={(event) => event.stopPropagation()}>
+      <Form dark={darkMode} onClick={stopFormClick}>
         <FormHeader dark={darkMode}>
           <HeaderCopy>
-            <FormTitle dark={darkMode}>New Task</FormTitle>
-            <FormIntro dark={darkMode}>
-              Add a reminder beside Blackboard work
-            </FormIntro>
+            <FormTitle dark={darkMode}>{formTitleLabel}</FormTitle>
+            <FormIntro dark={darkMode}>{formIntroLabel}</FormIntro>
           </HeaderCopy>
           <div>
             <CheckIcon checkStyle="X" dark={darkMode} onClick={close} />
@@ -386,7 +424,7 @@ export default function TaskForm({
             />
           </FormItem>
           <FormItem dark={darkMode}>
-            <FieldLabel dark={darkMode}>Time</FieldLabel>
+            <FieldLabel dark={darkMode}>{timeLabel}</FieldLabel>
             <TimePick
               color={themeColor}
               dark={darkMode}
