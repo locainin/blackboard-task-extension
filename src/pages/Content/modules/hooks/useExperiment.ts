@@ -1,6 +1,6 @@
 import { ExperimentConfig } from '../types';
 import { CLIENT_ID_LENGTH, EXPERIMENT_CONFIG_URL } from '../constants';
-import { useEffect, useState, useMemo, useContext } from 'react';
+import { useEffect, useMemo, useContext, useState } from 'react';
 import { ExperimentsContext } from '../contexts/contexts';
 import axios from 'axios';
 import {
@@ -32,9 +32,9 @@ async function getClientId(): Promise<string> {
     ['client_id'],
     {}
   );
-  let client_id = result['client_id'];
-  if (typeof client_id === 'string' && client_id) {
-    return client_id;
+  const clientId = result['client_id'];
+  if (typeof clientId === 'string' && clientId) {
+    return clientId;
   }
 
   const nextClientId = generateRandomNumber(CLIENT_ID_LENGTH);
@@ -89,38 +89,39 @@ export function useExperiments(): ExperimentsHubInterface {
 }
 
 export interface ExperimentInterface {
-  config: ExperimentConfig;
+  config: ExperimentConfig | null;
   userId: string;
   treated: boolean;
 }
 
 export function useExperiment(id: string): ExperimentInterface {
   const exp = useContext(ExperimentsContext);
-  const [config, setConfig] = useState<ExperimentConfig>(
-    {} as ExperimentConfig
+  const config = useMemo<ExperimentConfig | null>(
+    // Derive the active config straight from the latest hub data
+    // This keeps the hook in sync when the caller switches experiment ids
+    () => exp.configs.find((configEntry) => configEntry.id === id) ?? null,
+    [exp.configs, id]
   );
-  useEffect(() => {
-    const filtered = exp.configs.filter((e) => e.id == id);
-    if (filtered.length) setConfig(filtered[0]);
-  }, [exp.configs]);
+
   const treated = useMemo(() => {
-    if (exp.userId && config) {
-      if (new Date(config.start_time).valueOf() > Date.now()) return false;
-      const rolloutSeed =
-        (parseInt(exp.userId.slice(CLIENT_ID_LENGTH - 2)) +
-          config.random_offset) %
-        100;
-      const treatmentSeed =
-        (parseInt(
-          exp.userId.slice(CLIENT_ID_LENGTH - 4, CLIENT_ID_LENGTH - 2)
-        ) +
-          config.random_offset) %
-        100;
-      return (
-        rolloutSeed < config.rollout && treatmentSeed < config.treatment_split
-      );
+    if (!exp.userId || !config) {
+      return false;
     }
-    return false;
+
+    if (new Date(config.start_time).valueOf() > Date.now()) {
+      return false;
+    }
+
+    const rolloutSeed =
+      (parseInt(exp.userId.slice(CLIENT_ID_LENGTH - 2)) +
+        config.random_offset) %
+      100;
+    const treatmentSeed =
+      (parseInt(exp.userId.slice(CLIENT_ID_LENGTH - 4, CLIENT_ID_LENGTH - 2)) +
+        config.random_offset) %
+      100;
+
+    return rolloutSeed < config.rollout && treatmentSeed < config.treatment_split;
   }, [config, exp.userId]);
 
   return { config, userId: exp.userId, treated };

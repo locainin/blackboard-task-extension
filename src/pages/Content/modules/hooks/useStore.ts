@@ -2,10 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import update, { Spec } from 'immutability-helper';
 import { safeStorageSyncSet } from '../utils/extensionContext';
 
-type StoreUpdateFunction<Type> = (
-  root: string[], // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any
-) => Record<string, Type>;
+type StoreValue = unknown;
+type StoreUpdateFunction<Type> = (root: string[], value: StoreValue) => Record<string, Type>;
 type StoreDeleteFunction<Type> = (root: string[]) => Record<string, Type>;
 type StoreInitFunction<Type> = (arg: Record<string, Type>) => void;
 type StoreState<Type> = { [key: string]: Type };
@@ -17,14 +15,15 @@ export interface StoreInterface<Type> {
   initialize: StoreInitFunction<Type>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeSpec<Type>(root: string[], value: any) {
+function makeSpec<Type>(root: string[], value: StoreValue) {
   // no error handling is done, assume all entries filled when initialized
-  root.push(''); // leave one step for the final { $set: value } node
-  const spec = root
+  // Build from a copied path so the caller's root array stays unchanged
+  // Mutating the incoming array makes later callers harder to reason about
+  const path = [...root, ''];
+  const spec = path
     .reverse()
     .reduce((spec: Spec<Type, never>, key: string, i: number) => {
-      if (i == 0) return { $set: value } as Spec<Type, never>;
+      if (i === 0) return { $set: value } as Spec<Type, never>;
       return { [key]: spec } as Spec<Type, never>;
     }, {} as Spec<Type, never>);
   return spec;
@@ -40,10 +39,9 @@ export function useObjectStore<Type>(
   // Keep a live copy around so fast back-to-back updates do not race each other
   cachedRef.current = state;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateKey = useCallback(function updateKey(
     root: string[],
-    value: any
+    value: StoreValue
   ) {
     // Read from the ref instead of the render snapshot
     // This keeps rapid updates from overwriting each other
@@ -85,8 +83,8 @@ export function useObjectStore<Type>(
 }
 
 type ConfigStoreUpdateFunction<Type> = (
-  root: string[], // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any,
+  root: string[],
+  value: StoreValue,
   write?: boolean
 ) => Type;
 
@@ -109,10 +107,9 @@ export function useConfigStore<Type extends Record<string, unknown>>(
   // Keep storage writes aligned with the latest in-memory state
   cachedRef.current = state;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateKey = useCallback(function updateKey(
     root: string[],
-    value: any,
+    value: StoreValue,
     write = true
   ) {
     const newState = update(cachedRef.current, makeSpec<Type>(root, value));
