@@ -1,7 +1,6 @@
 import { DEFAULT_DASHBOARD_COLORS } from '../../constants';
 import {
   safeAddStorageOnChangedListener,
-  safeRemoveStorageOnChangedListener,
   safeStorageSyncGet,
   safeStorageSyncSet,
 } from '../../utils/extensionContext';
@@ -73,16 +72,36 @@ export function watchCustomColors(
     [key: string]: chrome.storage.StorageChange;
   }) => {
     if (key in changes) {
-      Object.entries(changes[key].newValue).forEach(
-        (entry: [string, unknown]) => {
-          if (
-            entry[0] in changes[key].oldValue &&
-            changes[key].oldValue[entry[0]] == entry[1]
-          )
-            return;
-          callback(entry[0], entry[1] as string);
+      const previousColors = (changes[key].oldValue ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const nextColors = (changes[key].newValue ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const affectedCourseIds = new Set([
+        ...Object.keys(previousColors),
+        ...Object.keys(nextColors),
+      ]);
+
+      affectedCourseIds.forEach((courseId) => {
+        const previousColor = previousColors[courseId];
+        const nextColor = nextColors[courseId];
+
+        // Ignore entries that did not really change
+        // This keeps listeners from repainting on no-op storage writes
+        if (previousColor === nextColor) return;
+
+        // Deleted custom colors should snap back to the deterministic default
+        // That keeps the UI in sync without waiting for a full course reload
+        if (typeof nextColor !== 'string') {
+          callback(courseId, colorFromId(courseId));
+          return;
         }
-      );
+
+        callback(courseId, nextColor);
+      });
     }
   };
   safeAddStorageOnChangedListener(listener);

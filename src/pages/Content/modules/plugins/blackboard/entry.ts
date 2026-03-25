@@ -11,6 +11,7 @@ import { logBlackboardDiagnostics } from './utils/diagnostics';
 
 const SIDEBAR_ROOT_ID = 'tfc-blackboard-root';
 const PREPARED_CONTAINER_ATTR = 'data-tfc-container-ready';
+const COLOR_PICKER_ATTR = 'data-tfc-color-picker';
 
 function setStyles() {
   // Keep the old Canvas-flavored CSS variables mapped to Blackboard colors
@@ -34,7 +35,13 @@ function makeColorPicker(
 ) {
   // Blackboard course cards do not expose a built-in color control
   // This small hidden input keeps the existing custom-color feature working
+  const existingPicker = card.querySelector(
+    `[${COLOR_PICKER_ATTR}="${variant}"]`
+  );
+  if (existingPicker) return existingPicker as HTMLElement;
+
   const wrapper = document.createElement('wrapper');
+  wrapper.setAttribute(COLOR_PICKER_ATTR, variant);
   const picker = document.createElement('input');
   wrapper.appendChild(picker);
   picker.type = 'color';
@@ -94,6 +101,49 @@ function makeColorPicker(
   return wrapper;
 }
 
+function mountUltraColorPicker(
+  card: Element,
+  titleNode: Element,
+  currColors: Record<string, string>
+) {
+  const mountPicker = () => {
+    const courseTitle = titleNode as HTMLElement;
+
+    // Blackboard fills the real course id into the title id after hydration
+    // Skip mounting until that id is present
+    if (courseTitle.id.length <= 13) return false;
+
+    const courseId = courseTitle.id.slice(12);
+    const color =
+      courseId in currColors ? currColors[courseId] : colorFromId(courseId);
+    makeColorPicker(
+      (nextColor: string) => {
+        setCustomColors('blackboard_custom', { [courseId]: nextColor });
+      },
+      color,
+      card as HTMLElement,
+      'bar'
+    );
+    return true;
+  };
+
+  // Fast Blackboard renders can already have the course id ready
+  // Try once before waiting on a later mutation that may never come
+  if (mountPicker()) return;
+
+  const observer = new MutationObserver(() => {
+    if (!mountPicker()) return;
+    observer.disconnect();
+  });
+
+  observer.observe(titleNode, {
+    childList: false,
+    subtree: false,
+    attributes: true,
+    attributeFilter: ['id'],
+  });
+}
+
 interface MountTarget {
   container: HTMLElement;
   needsActivityPadding: boolean;
@@ -120,7 +170,10 @@ function findUltraMountTarget(node: ParentNode): MountTarget | null {
 
   // Activity stream pages need the parent wrapper so the panel sits beside the feed
   const activityStreamSelf = node as HTMLElement;
-  if (activityStreamSelf.id === 'activity-stream' && activityStreamSelf.parentElement) {
+  if (
+    activityStreamSelf.id === 'activity-stream' &&
+    activityStreamSelf.parentElement
+  ) {
     logBlackboardDiagnostics('mount target detected', {
       surface: 'activity-stream-self',
     });
@@ -189,28 +242,10 @@ async function setColorPickers() {
     cards.forEach((card) => {
       const titleNode = card.querySelector('.course-title');
       if (!titleNode) return;
-      // titleNode is initialize with id "course-link-", so wait until the course id is populated
-      const observer = new MutationObserver(() => {
-        if (titleNode.id.length <= 13) return;
-        const courseId = titleNode.id.slice(12);
-        const color =
-          courseId in currColors ? currColors[courseId] : colorFromId(courseId);
-        makeColorPicker(
-          (color: string) => {
-            setCustomColors('blackboard_custom', { [courseId]: color });
-          },
-          color,
-          card as HTMLElement,
-          'bar'
-        );
-        observer.disconnect();
-      });
-      observer.observe(titleNode, {
-        childList: false,
-        subtree: false,
-        attributes: true,
-        attributeFilter: ['id'],
-      });
+
+      // Blackboard sometimes hydrates the title id before this script attaches
+      // Mount immediately when possible and only fall back to observing when needed
+      mountUltraColorPicker(card, titleNode, currColors);
     });
   } else {
     const container = document.getElementById('My_Courses_Tools');
