@@ -365,7 +365,7 @@ export default function CourseDropdown({
           setMenuVisible={setMenuVisible}
         />
       ) : safeChoices.length ? (
-        safeChoices.map((choice, i) => (
+        safeChoices.map((choice) => (
           <CourseButton
             color={choice.color}
             dark={darkMode}

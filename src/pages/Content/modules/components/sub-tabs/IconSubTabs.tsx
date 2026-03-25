@@ -99,16 +99,6 @@ const SubtitleTab = styled.div<SubtitleTabProps & DarkProps>`
   }
 `;
 
-interface ColorProps {
-  color?: string;
-  visible: boolean;
-}
-
-interface AnimatedProps {
-  pos: number;
-  numTabs: number;
-}
-
 export interface SubTabsProps {
   activeColor?: string;
   dark?: boolean;
