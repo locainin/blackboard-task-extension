@@ -71,12 +71,22 @@ export async function mapWithConcurrency<T, R>(
   const workerCount = Math.max(1, Math.min(concurrency, items.length));
   let nextIndex = 0;
 
+  function claimNextIndex() {
+    // Hand out one index at a time so each worker owns a unique slot
+    // Returning null gives the workers a clean exit without a constant loop
+    if (nextIndex >= items.length) return null;
+
+    const currentIndex = nextIndex;
+    nextIndex += 1;
+    return currentIndex;
+  }
+
   const worker = async () => {
-    while (true) {
-      const index = nextIndex;
-      nextIndex += 1;
-      if (index >= items.length) return;
+    let index = claimNextIndex();
+
+    while (index !== null) {
       results[index] = await mapper(items[index], index);
+      index = claimNextIndex();
     }
   };
 

@@ -70,7 +70,7 @@ export default async function loadBlackboardCourses() {
   );
 
   const filteredCourses = res.filter(
-    (c) => c.id != 'INSTITUTION' && c.id != 'PERSONAL'
+    (c) => c.id !== 'INSTITUTION' && c.id !== 'PERSONAL'
   );
 
   logBlackboardDiagnostics('courses loaded', {
