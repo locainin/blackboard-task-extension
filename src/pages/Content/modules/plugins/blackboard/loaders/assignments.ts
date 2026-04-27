@@ -29,8 +29,8 @@ const BLACKBOARD_ANNOUNCEMENTS_CACHE_MS = 2 * 60 * 1000;
 
 type BlackboardGradebookColumn = {
   id: string;
-  contentId: string;
-  parentId: string;
+  contentId?: string;
+  parentId?: string;
   name: string;
   score: {
     possible: number;
@@ -39,7 +39,7 @@ type BlackboardGradebookColumn = {
     due?: string;
     type: string;
   };
-  scoreProviderHandle: 'resource/x-bb-assessment' | 'resource/x-bb-forumlink';
+  scoreProviderHandle?: string;
 };
 
 type BlackboardContentLink = {
@@ -51,7 +51,16 @@ type BlackboardContentLink = {
 
 type BlackboardAttempt = {
   id: string;
-  status: 'NotAttempted' | 'NeedsGrading' | 'Completed';
+  status:
+    | 'NotAttempted'
+    | 'Abandoned'
+    | 'InProgress'
+    | 'Suspended'
+    | 'Canceled'
+    | 'NeedsGrading'
+    | 'Completed'
+    | 'InProgressAgain'
+    | 'NeedsGradingAgain';
   exempt: boolean;
   submissionDate?: string;
   displayGrade?: {
@@ -122,6 +131,19 @@ async function getAnnouncementsRequest(
   );
 }
 
+function logRecoverableBlackboardError(
+  event: string,
+  error: unknown,
+  details: Record<string, unknown>
+) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  logBlackboardDiagnostics(event, {
+    ...details,
+    message,
+  });
+}
+
 function parseAnnouncement(
   courseId: string,
   announcement: BlackboardAnnouncement
@@ -147,10 +169,11 @@ function parseAssignment(
 ): FinalAssignment {
   // Start with the gradebook view of the item
   // Link and grading details are filled in later
+  const assignmentId = col.contentId || col.id;
   const assignment = {
     ...AssignmentDefaults,
     name: col.name,
-    id: col.contentId + '', // content id
+    id: assignmentId + '', // content id when present, otherwise gradebook column id
     plannable_id: col.id + '', // gradebook column id
     type: AssignmentType.ASSIGNMENT,
     html_url: '/',
@@ -169,13 +192,47 @@ function parseAssignment(
   return assignment;
 }
 
-async function updateAssignmentDetails(assignment: FinalAssignment) {
+async function getAssignmentLinksSafely(assignment: FinalAssignment) {
+  try {
+    return await getAssignmentLink(assignment.course_id, assignment.id);
+  } catch (error) {
+    // Some Blackboard grade columns do not expose a content item to students
+    // Keep the task visible instead of failing the full sidebar refresh
+    logRecoverableBlackboardError('assignment link skipped', error, {
+      courseId: assignment.course_id,
+      assignmentId: assignment.id,
+      columnId: assignment.plannable_id,
+    });
+    return null;
+  }
+}
+
+async function getAttemptsSafely(assignment: FinalAssignment) {
+  try {
+    return await getAttemptsRequest(
+      assignment.course_id,
+      assignment.plannable_id
+    );
+  } catch (error) {
+    // Attempts can be blocked or absent for odd provider-backed columns
+    // Missing attempt data should not hide the task itself
+    logRecoverableBlackboardError('assignment attempts skipped', error, {
+      courseId: assignment.course_id,
+      assignmentId: assignment.id,
+      columnId: assignment.plannable_id,
+    });
+    return [];
+  }
+}
+
+export async function updateAssignmentDetails(assignment: FinalAssignment) {
   // Fetch the clickable content link and grading state in parallel
+  // Each side handles its own 403/404 so one bad Blackboard item cannot stop refresh
   const [links, attempts] = await Promise.all([
-    getAssignmentLink(assignment.course_id, assignment.id),
-    getAttemptsRequest(assignment.course_id, assignment.plannable_id),
+    getAssignmentLinksSafely(assignment),
+    getAttemptsSafely(assignment),
   ]);
-  if ('links' in links && links.links.length) {
+  if (links && 'links' in links && links.links.length) {
     const html = links.links.filter((l) => l.type === 'text/html');
     if (html.length) assignment.html_url = baseURL() + html[0].href;
   }
@@ -200,11 +257,20 @@ async function collectAnnouncements(
   const startStr = startDate.toISOString().split('T')[0];
   const endStr = endDate.toISOString().split('T')[0];
   const getAnnouncements = async (course: Course) => {
-    const announcements = await getAnnouncementsRequest(
-      course.id,
-      startStr,
-      endStr
-    );
+    let announcements: BlackboardAnnouncement[] = [];
+    try {
+      announcements = await getAnnouncementsRequest(
+        course.id,
+        startStr,
+        endStr
+      );
+    } catch (error) {
+      logRecoverableBlackboardError('course announcements skipped', error, {
+        courseId: course.id,
+        startDate: startStr,
+        endDate: endStr,
+      });
+    }
     return announcements.map((a) => parseAnnouncement(course.id, a));
   };
   const announcements: FinalAssignment[] = Array.prototype.concat(
@@ -278,7 +344,16 @@ async function collectAssignments(
   const cols: BlackboardGradebookColumn[][] = await mapWithConcurrency(
     courses,
     BLACKBOARD_COURSE_REQUEST_CONCURRENCY,
-    (course) => getGradebookColumnsRequest(course.id)
+    async (course) => {
+      try {
+        return await getGradebookColumnsRequest(course.id);
+      } catch (error) {
+        logRecoverableBlackboardError('course gradebook skipped', error, {
+          courseId: course.id,
+        });
+        return [];
+      }
+    }
   );
   const assignments = Array.prototype.concat(
     ...cols.map((courseCols, i) =>

@@ -193,7 +193,7 @@ export default function TaskForm({
   onSubmit,
   selectedCourse,
   visible = false,
-}: Props): JSX.Element {
+}: Props): JSX.Element | null {
   const lms = useContext(LMSContext);
   const courseStore = useCourseStore();
   const [title, setTitle] = useState('');

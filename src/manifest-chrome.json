@@ -16,8 +16,7 @@
     {
       "matches": ["https://*/*"],
       "js": ["contentScript.bundle.js"],
-      "css": ["content.styles.css"],
-      "all_frames": true
+      "css": ["content.styles.css"]
     }
   ],
   "web_accessible_resources": [
