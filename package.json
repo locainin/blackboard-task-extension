@@ -27,7 +27,7 @@
   "dependencies": {
     "@types/react": "^16.9.53",
     "@types/react-dom": "^16.9.8",
-    "axios": "^0.21.1",
+    "axios": "^1.20.0",
     "d3-ease": "^3.0.1",
     "immutability-helper": "^3.1.1",
     "json-bigint": "^1.0.0",
@@ -41,7 +41,7 @@
     "styled-components": "^5.2.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.17.10",
+    "@babel/core": "^8.0.5",
     "@hot-loader/react-dom": "^17.0.1",
     "@storybook/addon-actions": "^7.6.6",
     "@storybook/addon-console": "^2.0.0",
@@ -82,7 +82,7 @@
     "prettier": "^2.1.2",
     "sinon-chrome": "^3.0.1",
     "source-map-loader": "^1.1.2",
-    "storybook": "^7.6.6",
+    "storybook": "^10.6.0",
     "storybook-dark-mode": "^3.0.3",
     "style-loader": "^2.0.0",
     "terser-webpack-plugin": "^5.0.2",
@@ -91,7 +91,7 @@
     "typescript": "^5.3.3",
     "webpack": "^5.2.0",
     "webpack-bundle-analyzer": "^4.4.0",
-    "webpack-dev-server": "^3.11.0"
+    "webpack-dev-server": "^6.0.0"
   },
   "jest": {
     "moduleNameMapper": {
